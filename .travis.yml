@@ -33,32 +33,41 @@ script:
   - tar -xzf ../download/speex-1.2.0.tar.gz -C ../
   - tar -xzf ../download/speexdsp-1.2rc3.tar.gz -C ../
   - cd ..
-  - mkdir build-mbedtls && cd build-mbedtls
+  - mkdir build-mbedtls
+  - cd build-mbedtls
   - cmake ../mbedtls-mbedtls-2.16.1
-  - make && make install && cd ..
+  - sudo make install
+  - cd ..
   - mkdir build-bcunit && cd build-bcunit
   - cmake ../BCunit-3.0.2-Source
-  - make && make install && cd ..
+  - sudo make install
+  - cd ..
   - mkdir build-bctoolbox && cd build-bctoolbox
   - cmake ../bctoolbox-0.6.0 -DENABLE_SHARED=OFF
-  - make && make install && cd ..
+  - sudo make install
+  - cd ..
   - cd sqlite-autoconf-3270200
   - ./configure
-  - make && make install && cd ..
+  - sudo make install
+  - cd ..
   - mkdir build-bzrtp && cd build-bzrtp
   - cmake ../bzrtp-1.0.6 -DENABLE_SHARED=OFF
-  - make && make install & cd ..
+  - sudo make install
+  - cd ..
   - mkdir build-ortp && cd build-ortp
   - cmake ../ortp-1.0.2-0 -DENABLE_SHARED=OFF
-  - make && make install & cd ..
+  - sudo make install
+  - cd ..
   - cd speex-1.2.0
   - ./configure
-  - make && make install && cd ..
+  - sudo make install
+  - cd ..
   - cd speexdsp-1.2rc3
   - ./configure
-  - make && make install && cd ..
+  - sudo make install
+  - cd ..
   - mkdir build-mediastreamer2 && cd build-mediastreamer2
   - cmake ../mediastreamer2
-  - make && make install
+  - sudo make install
   - cd /usr/local/share/mediastreamer2_tester/sounds/
   - mediastreamer2_tester --writable-dir ~/
