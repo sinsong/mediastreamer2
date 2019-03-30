@@ -1,6 +1,10 @@
 Mediastreamer
 =============
 
+Modify by sinsong!
+
+[![Build Status](https://travis-ci.org/sinsong/mediastreamer2.svg?branch=master)](https://travis-ci.org/sinsong/mediastreamer2)
+
 * Project    : mediastreamer2 - a modular sound and video processing and streaming
 * Email      : <simon.morlat@linphone.org>
 * License    : GPLv2(or later) or Commercial licensing
