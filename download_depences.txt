@@ -7,3 +7,4 @@ http://www.linphone.org/releases/sources/bcunit/bcunit-3.0.2.tar.gz
 https://sqlite.org/2019/sqlite-autoconf-3270200.tar.gz
 http://downloads.us.xiph.org/releases/speex/speex-1.2.0.tar.gz
 http://downloads.xiph.org/releases/speex/speexdsp-1.2rc3.tar.gz
+https://archive.mozilla.org/pub/opus/opus-1.3.tar.gz
