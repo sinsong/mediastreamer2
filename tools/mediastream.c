@@ -96,8 +96,8 @@ typedef struct _MediastreamIceCandidate {
 
 typedef struct _MediastreamDatas {
 	MSFactory *factory;
-	int localport,remoteport,payload;
-	char ip[64];
+	int localport,remoteport,payload; // 本地 & 远程端口
+	char ip[64]; // 远程 ip
 	char *send_fmtp;
 	char *recv_fmtp;
 	int jitter;
@@ -160,6 +160,7 @@ typedef struct _MediastreamDatas {
 	FILE * logfile;
 	bool_t enable_speaker;
 } MediastreamDatas;
+// 这就是参数
 
 
 // MAIN METHODS
@@ -266,25 +267,30 @@ static int _main(int argc, char * argv[])
 #endif
 
 #if !TARGET_OS_MAC && !defined(__ANDROID__)
+// 我们要看的 main 函数，入口点在这里！！！
 int main(int argc, char * argv[])
 #endif
 
 #if !defined(__ANDROID__) && !TARGET_OS_MAC || TARGET_OS_IPHONE
 {
-	MediastreamDatas* args;
+	MediastreamDatas* args; //参数
 	cond = 1;
 
-	args = init_default_args();
+	args = init_default_args(); //初始化默认参数
 
+	// 从命令行解析参数
 	if (!parse_args(argc, argv, args)){
 		printf("%s",usage);
 		return 0;
 	}
 
+	// 设置媒体流
 	setup_media_streams(args);
 
+	// 开始媒体流循环
 	mediastream_run_loop(args);
 
+	// 清理媒体流
 	clear_mediastreams(args);
 
 	free(args);
@@ -374,7 +380,7 @@ bool_t parse_args(int argc, char** argv, MediastreamDatas* out) {
 	for (i=1;i<argc;i++){
 		if (strcmp(argv[i],"--help")==0 || strcmp(argv[i],"-h")==0) {
 			return FALSE;
-		}else if (strcmp(argv[i],"--local")==0){
+		}else if (strcmp(argv[i],"--local")==0){ // 本地端口
 			char *is_invalid;
 			i++;
 			out->localport = strtol(argv[i],&is_invalid,10);
@@ -382,7 +388,7 @@ bool_t parse_args(int argc, char** argv, MediastreamDatas* out) {
 				ms_error("Failed to parse local port '%s'\n",argv[i]);
 				return 0;
 			}
-		}else if (strcmp(argv[i],"--remote")==0){
+		}else if (strcmp(argv[i],"--remote")==0){ //远程地址
 			i++;
 			if (!parse_addr(argv[i],out->ip,sizeof(out->ip),&out->remoteport)) {
 				ms_error("Failed to parse remote address '%s'\n",argv[i]);
