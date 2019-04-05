@@ -146,7 +146,7 @@ typedef struct _MediastreamDatas {
 
 	AudioStream *audio;
 	PayloadType *pt;
-	RtpSession *session;
+	RtpSession *session; // RTP 会话
 	OrtpEvQueue *q;
 	RtpProfile *profile;
 	MSBandwidthController *bw_controller;
@@ -300,7 +300,7 @@ int main(int argc, char * argv[])
 
 #endif
 
-
+// 初始化默认参数
 MediastreamDatas* init_default_args(void) {
 	MediastreamDatas* args = (MediastreamDatas*)ms_malloc0(sizeof(MediastreamDatas));
 	args->localport=0;
@@ -698,6 +698,7 @@ static MSSndCard *get_sound_card(MSSndCardManager *manager, const char* card_nam
 	return play;
 }
 
+// 设置媒体流
 void setup_media_streams(MediastreamDatas* args) {
 	/*create the rtp session */
 #ifdef VIDEO_ENABLED
@@ -823,7 +824,7 @@ void setup_media_streams(MediastreamDatas* args) {
 				get_sound_card(manager,args->capture_card);
 		MSSndCard *play= args->playback_card==NULL ? ms_snd_card_manager_get_default_capture_card(manager) :
 				get_sound_card(manager,args->playback_card);
-		args->audio=audio_stream_new(factory, args->localport,args->localport+1,ms_is_ipv6(args->ip));
+		args->audio=audio_stream_new(factory, args->localport,args->localport+1,ms_is_ipv6(args->ip)); // 音频流地址设置！！！
 		if (args->bw_controller){
 			ms_bandwidth_controller_add_stream(args->bw_controller, (MediaStream*)args->audio);
 		}
@@ -1009,7 +1010,7 @@ void setup_media_streams(MediastreamDatas* args) {
 	}
 }
 
-
+// 迭代
 static void mediastream_tool_iterate(MediastreamDatas* args) {
 #ifndef _WIN32
 	struct pollfd pfd;
@@ -1090,7 +1091,9 @@ static void mediastream_tool_iterate(MediastreamDatas* args) {
 #endif
 }
 
+// 开始媒体流循环
 void mediastream_run_loop(MediastreamDatas* args) {
+	// 注册消息队列
 	rtp_session_register_event_queue(args->session,args->q);
 
 #if TARGET_OS_IPHONE
@@ -1100,13 +1103,19 @@ void mediastream_run_loop(MediastreamDatas* args) {
 	while(cond)
 	{
 		int n;
-		for(n=0;n<500 && cond;++n){
+		for(n=0;n<500 && cond;++n){ // 500 次
+
+			// 迭代
 			mediastream_tool_iterate(args);
+
 #if defined(VIDEO_ENABLED)
 			if (args->video) video_stream_iterate(args->video);
 #endif
+
+			// 音频流迭代
 			if (args->audio) audio_stream_iterate(args->audio);
 		}
+		// 显示 rtp 信息
 		rtp_stats_display(rtp_session_get_stats(args->session),"RTP stats");
 		if (args->session){
 			float audio_load = 0;
