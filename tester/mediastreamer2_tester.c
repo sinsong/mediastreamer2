@@ -50,20 +50,20 @@ void mediastreamer2_tester_init(void(*ftester_printf)(int level, const char *fmt
 
 	bc_tester_add_suite(&basic_audio_test_suite);
 	bc_tester_add_suite(&sound_card_test_suite);
-	bc_tester_add_suite(&adaptive_test_suite);
+	//bc_tester_add_suite(&adaptive_test_suite);
 	bc_tester_add_suite(&audio_stream_test_suite);
 #ifdef VIDEO_ENABLED
-	bc_tester_add_suite(&video_stream_test_suite);
+	//bc_tester_add_suite(&video_stream_test_suite);
 #endif
-	bc_tester_add_suite(&framework_test_suite);
-	bc_tester_add_suite(&player_test_suite);
+	//bc_tester_add_suite(&framework_test_suite);
+	//bc_tester_add_suite(&player_test_suite);
 #if MS_HAS_ARM_NEON
 	bc_tester_add_suite(&neon_test_suite);
 #endif
 	bc_tester_add_suite(&text_stream_test_suite);
 #ifdef HAVE_PCAP
-	bc_tester_add_suite(&codec_impl_test_suite);
-	bc_tester_add_suite(&jitterbuffer_test_suite);
+	//bc_tester_add_suite(&codec_impl_test_suite);
+	//bc_tester_add_suite(&jitterbuffer_test_suite);
 #endif
 }
 
