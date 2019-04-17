@@ -105,3 +105,8 @@ if(ENABLE_VIDEO)
 		)
 	endif()
 endif()
+
+
+add_compile_options(-g)
+add_executable(myt ${USE_BUNDLE} myt.c)
+target_link_libraries((myt ${MS2_LIBS_FOR_TOOLS} ${ORTP_LIBRARIES}))
