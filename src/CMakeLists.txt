@@ -304,9 +304,6 @@ endif()
 if(ANDROID_SUPPORT_LIBRARY)
 	list(APPEND VOIP_LIBS ${ANDROID_SUPPORT_LIBRARY})
 endif()
-if(ANDROID AND ENABLE_VIDEO)
-	list(APPEND VOIP_LIBS GLESv2)
-endif()
 if(HAVE_DLOPEN)
 	list(APPEND VOIP_LIBS dl)
 endif()
@@ -425,20 +422,6 @@ if(ENABLE_SHARED)
 		set_target_properties(mediastreamer_voip PROPERTIES LINK_FLAGS "${LINK_FLAGS_STR}")
 	endif()
 	add_dependencies(mediastreamer_voip ${MS2_VOIP_DEPENDENCIES})
-	if(IOS)
-		if(IOS)
-			set(MIN_OS ${LINPHONE_IOS_DEPLOYMENT_TARGET})
-		else()
-			set(MIN_OS ${CMAKE_OSX_DEPLOYMENT_TARGET})
-		endif()
-		set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/build/osx/")
-		set_target_properties(mediastreamer_voip PROPERTIES
-			FRAMEWORK TRUE
-			MACOSX_FRAMEWORK_IDENTIFIER org.linphone.mediastreamervoip
-  			MACOSX_FRAMEWORK_INFO_PLIST Info_voip.plist.in
-			PUBLIC_HEADER "${MEDIASTREAMER2_HEADER_FILES}"
-		) 
-	endif()
 	if(NOT ANDROID)
 		# Do not version shared library on Android
 		set_target_properties(mediastreamer_voip PROPERTIES SOVERSION ${MEDIASTREAMER_SO_VERSION})
