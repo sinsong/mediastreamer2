@@ -110,6 +110,40 @@ static void parse_events(RtpSession *session, OrtpEvQueue *q){
 	}
 }
 
+static bool_t parse_addr(const char *addr, char *ip, size_t len, int *port)
+{
+	const char *semicolon=NULL;
+	size_t iplen;
+	int slen;
+	const char *p;
+
+	*port=0;
+
+	for (p=addr+strlen(addr)-1;p>addr;p--){
+		if (*p==':') {
+			semicolon=p;
+			break;
+		}
+	}
+	/*if no semicolon is present, we can assume that user provided only port*/
+	if (semicolon==NULL) {
+		const char *localhost = "127.0.0.1";
+		char * end;
+		*port = strtol(addr, &end, 10);
+		if (*end != '\0' || end == addr) {
+			return FALSE;
+		}
+		strncpy(ip,localhost, MIN(len, strlen(localhost)));
+		return TRUE;
+	}
+	iplen=semicolon-addr;
+	slen=MIN(iplen,len-1);
+	strncpy(ip,addr,slen);
+	ip[slen]='\0';
+	*port=atoi(semicolon+1);
+	return TRUE;
+}
+
 int main()
 {
 	// init--------------------------------------------------------------------------
@@ -132,10 +166,12 @@ int main()
 	//args
 	logfile = fopen("ortp.log", "a+");
 
+	char addr[64] = {0};
 	printf("[localport] >>> ");
 	scanf("%d", &localport);
-	printf("[ip:remoteport] >>> ");
-	scanf("%s:%d", ip, &remoteport);
+	printf("[remote] >>> ");
+	fgets(addr, 64, stdin);
+	parse_addr(addr, ip, 64, remoteport);
 
 	printf("--------------------\n");
 	printf("[%d] -> [%s:%d]\n", localport, ip, remoteport);
