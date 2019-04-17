@@ -19,9 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 #include "mediastreamer2/msvideo.h"
-#if !defined(NO_FFMPEG)
-#include "ffmpeg-priv.h"
-#endif
 
 #ifdef _WIN32
 #include <malloc.h>
@@ -437,110 +434,7 @@ void ms_rgb_to_yuv(const uint8_t rgb[3], uint8_t yuv[3]){
 	yuv[2]=(uint8_t)(0.439*rgb[0] - 0.368*rgb[1] - 0.071*rgb[2] + 128);
 }
 
-#if !defined(NO_FFMPEG)
 
-
-int ms_pix_fmt_to_ffmpeg(MSPixFmt fmt){
-	switch(fmt){
-		case MS_RGBA32:
-			return AV_PIX_FMT_RGBA;
-		case MS_RGB24:
-			return AV_PIX_FMT_RGB24;
-		case MS_RGB24_REV:
-			return AV_PIX_FMT_BGR24;
-		case MS_YUV420P:
-			return AV_PIX_FMT_YUV420P;
-		case MS_YUYV:
-			return AV_PIX_FMT_YUYV422;
-		case MS_UYVY:
-			return AV_PIX_FMT_UYVY422;
-		case MS_YUY2:
-			return AV_PIX_FMT_YUYV422;   /* <- same as MS_YUYV */
-		case MS_RGB565:
-			return AV_PIX_FMT_RGB565;
-		default:
-			ms_fatal("format not supported.");
-			return -1;
-	}
-	return -1;
-}
-
-MSPixFmt ffmpeg_pix_fmt_to_ms(int fmt){
-	switch(fmt){
-		case AV_PIX_FMT_RGB24:
-			return MS_RGB24;
-		case AV_PIX_FMT_BGR24:
-			return MS_RGB24_REV;
-		case AV_PIX_FMT_YUV420P:
-			return MS_YUV420P;
-		case AV_PIX_FMT_YUYV422:
-			return MS_YUYV;     /* same as MS_YUY2 */
-		case AV_PIX_FMT_UYVY422:
-			return MS_UYVY;
-		case AV_PIX_FMT_RGBA:
-			return MS_RGBA32;
-		case AV_PIX_FMT_RGB565:
-			return MS_RGB565;
-		default:
-			ms_fatal("format not supported.");
-			return MS_YUV420P; /* default */
-	}
-	return MS_YUV420P; /* default */
-}
-
-struct _MSFFScalerContext{
-	struct SwsContext *ctx;
-	int src_h;
-};
-
-typedef struct _MSFFScalerContext MSFFScalerContext;
-
-static MSScalerContext *ff_create_swscale_context(int src_w, int src_h, MSPixFmt src_fmt,
-                                          int dst_w, int dst_h, MSPixFmt dst_fmt, int flags){
-	int ff_flags=0;
-	MSFFScalerContext *ctx=ms_new0(MSFFScalerContext,1);
-	ctx->src_h=src_h;
-#if MS_HAS_ARM
-	ff_flags|=SWS_FAST_BILINEAR;
-#else
-	if (flags & MS_SCALER_METHOD_BILINEAR)
-		ff_flags|=SWS_BILINEAR;
-	else if (flags & MS_SCALER_METHOD_NEIGHBOUR)
-		ff_flags|=SWS_BILINEAR;
-#endif
-	ctx->ctx=sws_getContext (src_w,src_h,ms_pix_fmt_to_ffmpeg (src_fmt),
-	                                       dst_w,dst_h,ms_pix_fmt_to_ffmpeg (dst_fmt),ff_flags,NULL,NULL,NULL);
-	if (ctx->ctx==NULL){
-		ms_free(ctx);
-		ctx=NULL;
-	}
-	return (MSScalerContext*)ctx;
-}
-
-static int ff_sws_scale(MSScalerContext *ctx, uint8_t *src[], int src_strides[], uint8_t *dst[], int dst_strides[]){
-	MSFFScalerContext *fctx=(MSFFScalerContext*)ctx;
-#if LIBSWSCALE_VERSION_INT >= AV_VERSION_INT(0,9,0)
-	int err=sws_scale(fctx->ctx,(const uint8_t * const*)src,src_strides,0,fctx->src_h,dst,dst_strides);
-#else
-	int err=sws_scale(fctx->ctx,(uint8_t **)src,src_strides,0,fctx->src_h,dst,dst_strides);
-#endif
-	if (err<0) return -1;
-	return 0;
-}
-
-static void ff_sws_free(MSScalerContext *ctx){
-	MSFFScalerContext *fctx=(MSFFScalerContext*)ctx;
-	if (fctx->ctx) sws_freeContext(fctx->ctx);
-	ms_free(ctx);
-}
-
-MSScalerDesc ffmpeg_scaler={
-	ff_create_swscale_context,
-	ff_sws_scale,
-	ff_sws_free
-};
-
-#endif
 
 #if 0
 
@@ -648,8 +542,6 @@ MSScalerContext *ms_scaler_create_context(int src_w, int src_h, MSPixFmt src_fmt
 		if (android_getCpuFamily() == ANDROID_CPU_FAMILY_ARM && (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON) != 0){
 			scaler_impl = &ms_android_scaler;
 		}
-#elif !defined(NO_FFMPEG)
-		scaler_impl=&ffmpeg_scaler;
 #endif
 	}
 	

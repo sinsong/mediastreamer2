@@ -208,10 +208,6 @@ extern bool_t AMediaImage_isAvailable(void);
 extern MSWebCamDesc ms_v4ios_cam_desc;
 #endif
 
-#ifdef __QNX__
-extern MSWebCamDesc ms_bb10_camera_desc;
-#endif
-
 #endif /* MS2_FILTERS */
 
 static MSWebCamDesc * ms_web_cam_descs[]={
@@ -234,9 +230,6 @@ static MSWebCamDesc * ms_web_cam_descs[]={
 #if TARGET_OS_MAC && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR && !TARGET_OS_EMBEDDED
 	&ms_v4m_cam_desc,
 #endif
-#ifdef __QNX__
-	&ms_bb10_camera_desc,
-#endif
 #if TARGET_OS_IPHONE &&  !TARGET_IPHONE_SIMULATOR
 	&ms_v4ios_cam_desc,
 #endif
@@ -257,12 +250,6 @@ void ms_factory_init_voip(MSFactory *obj){
 
 	ms_srtp_init();
 	obj->devices_info = ms_devices_info_new();
-
-#if defined(VIDEO_ENABLED) && defined(MS2_FILTERS) && !defined(NO_FFMPEG) && defined(HAVE_LIBAVCODEC_AVCODEC_H)
-	ms_ffmpeg_check_init();
-	__register_ffmpeg_encoders_if_possible(obj);
-	__register_ffmpeg_h264_decoder_if_possible(obj);
-#endif
 
 #if defined(__APPLE__) && defined(VIDEO_ENABLED)
 	_register_videotoolbox_if_supported(obj);

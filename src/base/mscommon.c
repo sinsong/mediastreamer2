@@ -37,10 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
    #include "TargetConditionals.h"
 #endif
 
-#ifdef __QNX__
-#include <sys/syspage.h>
-#endif
-
 
 /* we need this pragma because this file implements much of compatibility functions*/
 #ifdef _MSC_VER

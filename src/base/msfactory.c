@@ -64,10 +64,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
    #include "TargetConditionals.h"
 #endif
 
-#ifdef __QNX__
-#include <sys/syspage.h>
-#endif
-
 
 MS2_DEPRECATED static MSFactory *fallback_factory=NULL;
 
@@ -186,8 +182,6 @@ void ms_factory_init(MSFactory *obj){
 	num_cpu = sysinfo.dwNumberOfProcessors;
 #elif __APPLE__ || __linux
 	num_cpu = sysconf( _SC_NPROCESSORS_CONF); /*check the number of processors configured, not just the one that are currently active.*/
-#elif __QNX__
-	num_cpu = _syspage_ptr->num_cpu;
 #else
 #warning "There is no code that detects the number of CPU for this platform."
 #endif
@@ -207,9 +201,6 @@ void ms_factory_init(MSFactory *obj){
 #endif
 #ifdef __linux
 	ms_factory_add_platform_tag(obj, "linux");
-#endif
-#ifdef __QNX__
-	ms_factory_add_platform_tag(obj, "qnx");
 #endif
 #ifdef __ANDROID__
 	ms_factory_add_platform_tag(obj, "android");
@@ -609,9 +600,6 @@ int ms_factory_load_plugins(MSFactory *factory, const char *dir){
 	}
 	while( (de=readdir(ds))!=NULL){
 		if (
-#ifndef __QNX__
-			(de->d_type==DT_REG || de->d_type==DT_UNKNOWN || de->d_type==DT_LNK) &&
-#endif
 			(strstr(de->d_name, "libms") == de->d_name) && ((ext=strstr(de->d_name,PLUGINS_EXT))!=NULL)) {
 			void *handle;
 			snprintf(plugin_name, MIN(sizeof(plugin_name), (size_t)(ext - de->d_name + 1)), "%s", de->d_name);
