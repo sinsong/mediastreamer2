@@ -21,15 +21,6 @@
 ############################################################################
 
 find_library(LIBM NAMES m)
-if(ANDROID)
-	find_library(ANDROID_CPU_FEATURES_LIBRARY NAMES cpufeatures)
-	find_library(ANDROID_SUPPORT_LIBRARY NAMES support)
-endif()
-
-if(MSVC AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsPhone" AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-	find_library(LIBGCC NAMES gcc)
-	find_library(LIBMINGWEX NAMES mingwex)
-endif()
 
 find_program(AWK_PROGRAM awk)
 if(NOT AWK_PROGRAM)
@@ -53,9 +44,6 @@ set(BASE_SOURCE_FILES_C
 	otherfilters/tee.c
 	otherfilters/void.c
 )
-if(ANDROID)
-	list(APPEND BASE_SOURCE_FILES_C utils/msjava.c)
-endif()
 
 bc_git_version(ms2 ${PROJECT_VERSION})
 
@@ -76,9 +64,7 @@ add_definitions(
 set(BASE_LIBS
 	${BCTOOLBOX_CORE_LIBRARIES} ${ORTP_LIBRARIES}
 )
-if(WIN32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsPhone" AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-	list(APPEND BASE_LIBS ${LIBGCC} ${LIBMINGWEX} ole32 oleaut32 uuid Winmm Ws2_32)
-endif()
+
 if(HAVE_DLOPEN)
 	list(APPEND BASE_LIBS dl)
 endif()
@@ -120,14 +106,6 @@ if(ENABLE_SHARED)
 	target_include_directories(mediastreamer_base PUBLIC ${MEDIASTREAMER2_INCLUDE_DIRS})
 	target_link_libraries(mediastreamer_base PRIVATE ${BASE_LIBS})
 	add_dependencies(mediastreamer_base ms2-git-version ms2-basedescs-header)
-	if(MSVC)
-		if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-			install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/mediastreamer_base.pdb
-				DESTINATION ${CMAKE_INSTALL_BINDIR}
-				PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-			)
-		endif()
-	endif()
 	install(TARGETS mediastreamer_base EXPORT ${EXPORT_TARGETS_NAME}Targets
 		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -210,24 +188,7 @@ set(VOIP_SOURCE_FILES_ASM )
 if(ENABLE_ALSA)
 	list(APPEND VOIP_SOURCE_FILES_C audiofilters/alsa.c)
 endif()
-if(ANDROID)
-	list(APPEND VOIP_SOURCE_FILES_CXX voip/msvoip_jni.cc)
-endif()
-if(ENABLE_ANDROIDSND)
-	list(APPEND VOIP_SOURCE_FILES_CXX
-		android/androidsound.cpp
-		android/androidsound_depr.cpp
-		android/androidsound_opensles.cpp
-		android/AudioRecord.cpp
-		android/AudioSystem.cpp
-		android/AudioTrack.cpp
-		android/hardware_echo_canceller.cpp
-		android/loader.cpp
-		android/String8.cpp
-		#audiofilters/aac-eld-android.cpp
-		#Not working on Android, to be fix
-	)
-endif()
+
 if(ENABLE_ARTSC)
 	list(APPEND VOIP_SOURCE_FILES_C audiofilters/arts.c)
 endif()
@@ -281,180 +242,7 @@ if(SPEEXDSP_FOUND)
 	list(APPEND VOIP_SOURCE_FILES_C audiofilters/speexec.c)
 endif()
 
-if(ENABLE_VIDEO)
-	list(APPEND VOIP_SOURCE_FILES_C
-		utils/bits_rw.c
-		videofilters/extdisplay.c
-		videofilters/mire.c
-		videofilters/nowebcam.c
-		videofilters/pixconv.c
-		videofilters/sizeconv.c
-		voip/layouts.c
-		voip/layouts.h
-		voip/msvideo.c
-		voip/msvideo_neon.c
-		voip/msvideo_neon.h
-		voip/nowebcam.h
-		voip/rfc2429.h
-		voip/rfc3984.c
-		voip/videostarter.c
-		voip/videostream.c
-		voip/video_preset_high_fps.c
-	)
-	if(FFMPEG_FOUND AND NOT TURBOJPEG_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			videofilters/ffmpegnowebcam.c
-		)
-	elseif(TURBOJPEG_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			videofilters/turbojpegnowebcam.c
-		)
-	endif()
-	if(WIN32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsPhone" AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-		add_definitions(-DHAVE_DIRECTSHOW)
-		list(APPEND VOIP_SOURCE_FILES_C
-			videofilters/drawdib-display.c
-		)
-		list(APPEND VOIP_SOURCE_FILES_CXX
-			videofilters/msdscap.cc
-		)
-	endif()
-	if(APPLE)
-		if(IOS)
-			list(APPEND VOIP_SOURCE_FILES_C
-				utils/opengl_functions.c
-				utils/opengl_functions.h
-				utils/opengles_display.c
-				utils/opengles_display.h
-				utils/shader_util.c
-				utils/shader_util.h
-				voip/scaler.c
-			)
-			list(APPEND VOIP_SOURCE_FILES_OBJC
-				videofilters/iosdisplay.m
-				videofilters/ioscapture.m
-				voip/ioshardware.m
-			)
-		else()
-			list(APPEND VOIP_SOURCE_FILES_OBJC
-				videofilters/msosxdisplay.m
-				videofilters/avfound-capture.m
-			)
 
-			list(APPEND VOIP_SOURCE_FILES_C
-				utils/opengl_functions.c
-				utils/opengl_functions.h
-				utils/opengles_display.c
-				utils/opengles_display.h
-				utils/shader_util.c
-				utils/shader_util.h
-			)
-		endif()
-	endif()
-	if(APPLE)
-		list(APPEND VOIP_SOURCE_FILES_C videofilters/videotoolbox.c)
-	endif()
-	if(ANDROID)
-		list(APPEND VOIP_SOURCE_FILES_C
-			android/mediacodech264dec.c
-			android/mediacodech264enc.c
-			android/android-display.c
-			android/android-opengl-display.c
-			utils/opengl_functions.c
-			utils/opengl_functions.h
-			utils/opengles_display.c
-			utils/opengles_display.h
-			utils/shader_util.c
-			utils/shader_util.h
-			voip/scaler.c
-		)
-		if(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7-a")
-			list(APPEND VOIP_SOURCE_FILES_ASM
-				voip/scaler_arm.S
-			)
-		endif()
-		list(APPEND VOIP_SOURCE_FILES_CXX
-			android/android_mediacodec.cpp
-			android/android-display-bad.cpp
-			android/androidvideo.cpp
-		)
-	endif()
-	if (ENABLE_QNX)
-		list(APPEND VOIP_SOURCE_FILES_CXX
-			videofilters/bb10_display.cpp
-			videofilters/bb10_capture.cpp
-		)
-	endif()
-	if(FFMPEG_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			utils/ffmpeg-priv.c
-			utils/ffmpeg-priv.h
-			utils/swscale.h
-			videofilters/h264dec.c
-			videofilters/videodec.c
-			videofilters/videoenc.c
-		)
-		if(NOT TURBOJPEG_FOUND)
-			list(APPEND VOIP_SOURCE_FILES_C
-				videofilters/ffmpegjpegwriter.c
-			)
-		endif()
-	endif()
-	if(TURBOJPEG_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			videofilters/turbojpegwriter.c
-		)
-		if(TURBOJPEG_USE_CONST_BUFFERS)
-			set_source_files_properties(videofilters/turbojpegwriter.c PROPERTIES COMPILE_DEFINITIONS "TURBOJPEG_USE_CONST_BUFFERS")
-		endif()
-	endif()
-	if(OPENGL_FOUND OR QTANGLE_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			utils/opengl_functions.c
-			utils/opengles_display.c
-			utils/shader_util.c
-			videofilters/generic_opengl_display.c
-		)
-	endif()
-	if(GLX_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			utils/opengl_functions.c
-			utils/opengles_display.c
-			utils/shader_util.c
-			videofilters/glxvideo.c
-		)
-	endif()
-	if(NOT APPLE AND NOT ANDROID AND OPENGL_FOUND OR GLX_FOUND)
-		find_package(Glew REQUIRED)
-	endif()
-	if(SDL_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C videofilters/videoout.c)
-	endif()
-	if(THEORA_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C videofilters/theora.c)
-	endif()
-	if(V4L_FOUND)
-		if(HAVE_LINUX_VIDEODEV_H)
-			list(APPEND VOIP_SOURCE_FILES_C videofilters/msv4l.c)
-		endif()
-		if(HAVE_LINUX_VIDEODEV2_H)
-			list(APPEND VOIP_SOURCE_FILES_C videofilters/msv4l2.c)
-		endif()
-	endif()
-	if(VPX_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C
-			videofilters/vp8.c
-			voip/vp8rtpfmt.c
-			voip/vp8rtpfmt.h
-		)
-	endif()
-	if(X11_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C utils/x11_helper.c)
-	endif()
-	if(XV_FOUND)
-		list(APPEND VOIP_SOURCE_FILES_C videofilters/x11video.c)
-	endif()
-endif()
 if(BCMATROSKA2_FOUND)
 	list(APPEND VOIP_SOURCE_FILES_C
 		videofilters/mkv.c
@@ -506,15 +294,6 @@ if(VOIP_SOURCE_FILES_CXX)
 	bc_apply_compile_flags(VOIP_SOURCE_FILES_CXX STRICT_OPTIONS_CPP STRICT_OPTIONS_CXX)
 endif()
 
-
-if(ENABLE_VIDEO AND ANDROID AND CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7-a")
-	set(NEON_SOURCE_FILES
-		voip/msvideo_neon.c
-		voip/scaler.c
-	)
-endif()
-
-
 if(VOIP_SOURCE_FILES_ASM)
 	get_directory_property(DIRECTORY_PROPERTY_COMPILE_OPTIONS "COMPILE_OPTIONS")
 	string(REPLACE ";" " " DIRECTORY_PROPERTY_COMPILE_OPTIONS "${DIRECTORY_PROPERTY_COMPILE_OPTIONS}")
@@ -531,14 +310,7 @@ set(VOIP_LIBS
 	${BCTOOLBOX_CORE_LIBRARIES}
 	${ORTP_LIBRARIES}
 )
-if(WIN32)
-	if(NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsPhone" AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-		list(APPEND VOIP_LIBS ${LIBGCC} ${LIBMINGWEX} ole32 oleaut32 uuid Winmm Ws2_32)
-		if(ENABLE_VIDEO)
-			list(APPEND VOIP_LIBS gdi32 strmiids user32 vfw32)
-		endif()
-	endif()
-endif()
+
 if(LIBM)
 	list(APPEND VOIP_LIBS ${LIBM})
 endif()
@@ -728,9 +500,3 @@ if(FFMPEG_FOUND AND NOT WIN32)
 	endforeach()
 endif()
 
-if(ENABLE_VIDEO)
-	install(FILES voip/nowebcamCIF.jpg
-		DESTINATION ${PACKAGE_DATA_DIR}/images
-        PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-	)
-endif()

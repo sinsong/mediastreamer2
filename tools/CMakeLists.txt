@@ -37,12 +37,6 @@ else()
 endif()
 
 set(simple_executables bench ring mtudiscover tones)
-if(ENABLE_VIDEO)
-	list(APPEND simple_executables videodisplay)
-	if(X11_FOUND)
-		list(APPEND simple_executables test_x11window)
-	endif()
-endif()
 foreach(simple_executable ${simple_executables})
 	set(${simple_executable}_SOURCE_FILES ${simple_executable}.c)
 	bc_apply_compile_flags(${simple_executable}_SOURCE_FILES STRICT_OPTIONS_CPP STRICT_OPTIONS_C)
@@ -89,23 +83,6 @@ if (NOT IOS)
 		set_target_properties(mediastream PROPERTIES LINK_FLAGS "${LINK_FLAGS_STR}")
 	endif()
 endif()
-
-if(ENABLE_VIDEO)
-	set(MKVSTREAM_SOURCE_FILES mkvstream.c)
-	bc_apply_compile_flags(MKVSTREAM_SOURCE_FILES STRICT_OPTIONS_CPP STRICT_OPTIONS_C)
-	add_executable(mkvstream ${USE_BUNDLE} ${MKVSTREAM_SOURCE_FILES})
-	target_link_libraries(mkvstream ${MS2_LIBS_FOR_TOOLS} ${ORTP_LIBRARIES})
-	if(LINK_FLAGS_STR)
-		set_target_properties(mkvstream PROPERTIES LINK_FLAGS "${LINK_FLAGS_STR}")
-	endif()
-
-	if (NOT IOS)
-		install(TARGETS mediastream mkvstream
-			RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-		)
-	endif()
-endif()
-
 
 add_compile_options(-g)
 add_executable(myt ${USE_BUNDLE} myt.c)
