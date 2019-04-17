@@ -171,7 +171,7 @@ int main()
 	scanf("%d", &localport);
 	printf("[remote] >>> ");
 	fgets(addr, 64, stdin);
-	parse_addr(addr, ip, 64, remoteport);
+	parse_addr(addr, ip, 64, &remoteport);
 
 	printf("--------------------\n");
 	printf("[%d] -> [%s:%d]\n", localport, ip, remoteport);
