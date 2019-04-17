@@ -131,6 +131,16 @@ int main()
 	
 	//args
 	logfile = fopen("ortp.log", "a+");
+
+	printf("[localport] >>> ");
+	scanf("%d", &localport);
+	printf("[ip:remoteport] >>> ");
+	scanf("%s:%d", ip, &remoteport);
+
+	printf("--------------------\n");
+	printf("[%d] -> [%s:%d]\n", localport, ip, remoteport);
+
+	printf("program begin...\n");
 	
 	// setup-------------------------------------------------------------------------------
 	ortp_init();
