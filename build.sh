@@ -16,17 +16,17 @@ mkdir b
 mkdir b/mbedtls
 echo build --- mbedtls
 cmake -S deps/mbedtls-mbedtls-2.16.1 -B b/mbedtls
-sh -c "cd b/mbedtls && make install"
+cmake --build b/mbedtls --target install
 
 mkdir b/bcunit
 echo build -- bcunit
 cmake -S deps/BCunit-3.0.2-Source -B b/bcunit
-sh -c "cd b/bcunit && make install"
+cmake --build b/bcunit --target install
 
 mkdir b/bctoolbox
 echo build --- bctoolbox
 cmake -DENABLE_SHARED=OFF -S deps/bctoolbox-0.6.0 -B b/bctoolbox
-sh -c "cd b/bctoolbox && make install"
+cmake --build b/bctoolbox --target install
 
 echo build --- sqlite
 sh -c "cd deps/sqlite-autoconf-3270200 && ./configure && make install"
@@ -34,12 +34,12 @@ sh -c "cd deps/sqlite-autoconf-3270200 && ./configure && make install"
 mkdir b/bzrtp
 echo build --- bzrtp
 cmake -DENABLE_SHARED=OFF -S deps/bzrtp-1.0.6 -D b/bzrtp
-sh -c "cd b/bzrtp && make install"
+cmake --build b/bzrtp --target install
 
 mkdir b/ortp
 cmake -DENABLE_SHARED=OFF -S deps/ortp-1.0.2-0 -B b/ortp
 echo build --- ortp
-sh -c "cd b/ortp && make install"
+cmake --build b/ortp --target install
 
 echo build --- speex
 sh -c "cd deps/speex-1.2.0 && ./configure && make install"
