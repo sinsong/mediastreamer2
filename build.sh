@@ -15,17 +15,17 @@ tar -xzf download/opus-1.3.tar.gz -C deps/
 mkdir b
 mkdir b/mbedtls
 echo build --- mbedtls
-cmake -S deps/mbedtls-mbedtls-2.16.1 -B b/mbedtls
+sh -c "cd b/mbedtls && cmake ../../deps/mbedtls-mbedtls-2.16.1"
 cmake --build b/mbedtls --target install
 
 mkdir b/bcunit
 echo build -- bcunit
-cmake -S deps/BCunit-3.0.2-Source -B b/bcunit
+sh -c "cd b/bcunit && cmake ../../deps/BCunit-3.0.2-Source"
 cmake --build b/bcunit --target install
 
 mkdir b/bctoolbox
 echo build --- bctoolbox
-cmake -DENABLE_SHARED=OFF -S deps/bctoolbox-0.6.0 -B b/bctoolbox
+sh -c "cd b/bctoolbox && cmake -DENABLE_SHARED=OFF ../../deps/bctoolbox-0.6.0"
 cmake --build b/bctoolbox --target install
 
 echo build --- sqlite
@@ -33,12 +33,12 @@ sh -c "cd deps/sqlite-autoconf-3270200 && ./configure && make install"
 
 mkdir b/bzrtp
 echo build --- bzrtp
-cmake -DENABLE_SHARED=OFF -S deps/bzrtp-1.0.6 -D b/bzrtp
+sh -c "cd b/bzrtp && cmake -DENABLE_SHARED=OFF ../../deps/bzrtp-1.0.6"
 cmake --build b/bzrtp --target install
 
 mkdir b/ortp
-cmake -DENABLE_SHARED=OFF -S deps/ortp-1.0.2-0 -B b/ortp
 echo build --- ortp
+sh -c "cd b/ortp && cmake -DENABLE_SHARED=OFF ../../deps/ortp-1.0.2-0"
 cmake --build b/ortp --target install
 
 echo build --- speex
