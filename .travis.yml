@@ -18,7 +18,7 @@ addons:
 script:
   - pwd
 
-  - ./build.sh
+  - sudo sh -c "./build.sh"
 
   - mkdir build-mediastream && cd build-mediastream
   - cmake ..
