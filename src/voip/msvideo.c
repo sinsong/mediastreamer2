@@ -435,114 +435,12 @@ void ms_rgb_to_yuv(const uint8_t rgb[3], uint8_t yuv[3]){
 }
 
 
-
-#if 0
-
-/*
-We use openmax-dl (from ARM) to optimize some scaling routines.
-*/
-
-#include "omxIP.h"
-
-typedef struct AndroidScalerCtx{
-	MSFFScalerContext base;
-	OMXIPColorSpace cs;
-	OMXSize src_size;
-	OMXSize dst_size;
-	bool_t use_omx;
-}AndroidScalerCtx;
-
-/* for android we use ffmpeg's scaler except for YUV420P-->RGB565, for which we prefer
- another arm neon optimized routine */
-
-static MSScalerContext *android_create_scaler_context(int src_w, int src_h, MSPixFmt src_fmt,
-                                          int dst_w, int dst_h, MSPixFmt dst_fmt, int flags){
-	AndroidScalerCtx *ctx=ms_new0(AndroidScalerCtx,1);
-	if (src_fmt==MS_YUV420P && dst_fmt==MS_RGB565){
-		ctx->use_omx=TRUE;
-		ctx->cs=OMX_IP_BGR565;
-		ctx->src_size.width=src_w;
-		ctx->src_size.height=src_h;
-		ctx->dst_size.width=dst_w;
-		ctx->dst_size.height=dst_h;
-	}else{
-		unsigned int ff_flags=0;
-		ctx->base.src_h=src_h;
-		if (flags & MS_SCALER_METHOD_BILINEAR)
-			ff_flags|=SWS_BILINEAR;
-		else if (flags & MS_SCALER_METHOD_NEIGHBOUR)
-			ff_flags|=SWS_BILINEAR;
-		ctx->base.ctx=sws_getContext (src_w,src_h,ms_pix_fmt_to_ffmpeg (src_fmt),
-	                                       dst_w,dst_h,ms_pix_fmt_to_ffmpeg (dst_fmt),ff_flags,NULL,NULL,NULL);
-		if (ctx->base.ctx==NULL){
-			ms_free(ctx);
-			ctx=NULL;
-		}
-	}
-	return (MSScalerContext *)ctx;
-}
-
-static int android_scaler_process(MSScalerContext *ctx, uint8_t *src[], int src_strides[], uint8_t *dst[], int dst_strides[]){
-	AndroidScalerCtx *actx=(AndroidScalerCtx*)ctx;
-	if (actx->use_omx){
-		int ret;
-		OMX_U8 *osrc[3];
-		OMX_INT osrc_strides[3];
-		OMX_INT xrr_max;
-		OMX_INT yrr_max;
-
-		osrc[0]=src[0];
-		osrc[1]=src[1];
-		osrc[2]=src[2];
-		osrc_strides[0]=src_strides[0];
-		osrc_strides[1]=src_strides[1];
-		osrc_strides[2]=src_strides[2];
-
-		xrr_max = (OMX_INT) ((( (OMX_F32) ((actx->src_size.width&~1)-1) / ((actx->dst_size.width&~1)-1))) * (1<<16) +0.5);
-		yrr_max = (OMX_INT) ((( (OMX_F32) ((actx->src_size.height&~1)-1) / ((actx->dst_size.height&~1)-1))) * (1<< 16) +0.5);
-
-		ret=omxIPCS_YCbCr420RszCscRotBGR_U8_P3C3R((const OMX_U8**)osrc,osrc_strides,actx->src_size,dst[0],dst_strides[0],actx->dst_size,actx->cs,
-				OMX_IP_BILINEAR, OMX_IP_DISABLE, xrr_max,yrr_max);
-		if (ret!=OMX_Sts_NoErr){
-			ms_error("omxIPCS_YCbCr420RszCscRotBGR_U8_P3C3R() failed : %i",ret);
-			return -1;
-		}
-		return 0;
-	}
-	return ff_sws_scale(ctx,src,src_strides,dst,dst_strides);
-}
-
-static void android_scaler_free(MSScalerContext *ctx){
-	ff_sws_free(ctx);
-}
-
-static MSScalerDesc android_scaler={
-	android_create_scaler_context,
-	android_scaler_process,
-	android_scaler_free
-};
-
-#endif
-
-#ifdef __ANDROID__
-#include "cpu-features.h"
-#endif
-
-#if defined(__ANDROID__) && defined(MS_HAS_ARM) && !defined(__aarch64__)
-extern MSScalerDesc ms_android_scaler;
-#endif 
-
 static MSScalerDesc *scaler_impl=NULL;
 
 
 MSScalerContext *ms_scaler_create_context(int src_w, int src_h, MSPixFmt src_fmt,
                                           int dst_w, int dst_h, MSPixFmt dst_fmt, int flags){
 	if (!scaler_impl){
-#if defined(__ANDROID__) && defined(MS_HAS_ARM) && !defined(__aarch64__)
-		if (android_getCpuFamily() == ANDROID_CPU_FAMILY_ARM && (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON) != 0){
-			scaler_impl = &ms_android_scaler;
-		}
-#endif
 	}
 	
 	if (scaler_impl)
@@ -600,15 +498,6 @@ static void rotate_plane_down_scale_by_2(int wDest, int hDest, int full_width, c
 	}
 }
 
-#ifdef __ANDROID__
-
-static int hasNeon = -1;
-#elif MS_HAS_ARM_NEON
-static int hasNeon = 1;
-#elif MS_HAS_ARM
-static int hasNeon = 0;
-#endif
-
 /* Destination and source images may have their dimensions inverted.*/
 mblk_t *copy_ycbcrbiplanar_to_true_yuv_with_rotation_and_down_scale_by_2(MSYuvBufAllocator *allocator, const uint8_t* y, const uint8_t * cbcr, int rotation, int w, int h, int y_byte_per_row,int cbcr_byte_per_row, bool_t uFirstvSecond, bool_t down_scale) {
 	MSPicture pict;
@@ -620,16 +509,6 @@ mblk_t *copy_ycbcrbiplanar_to_true_yuv_with_rotation_and_down_scale_by_2(MSYuvBu
 	uint8_t* dstv;
 	int factor = down_scale?2:1;
 	mblk_t * yuv_block;
-
-#ifdef __ANDROID__
-	if (hasNeon == -1) {
-		hasNeon = (((android_getCpuFamily() == ANDROID_CPU_FAMILY_ARM) && ((android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON) != 0))
-			|| (android_getCpuFamily() == ANDROID_CPU_FAMILY_ARM64));
-	#ifdef __aarch64__
-		ms_warning("Warning: ARM64 NEON routines for video rotation are not yet implemented for Android: using SOFT version!");
-	#endif
-	}
-#endif
 	
 	yuv_block = ms_yuv_buf_allocator_get(allocator, &pict, w, h);
 
