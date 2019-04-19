@@ -28,7 +28,7 @@ cd ${mypath}
 
 echo build --- bctoolbox
 cd deps/bctoolbox-0.6.0
-cmake .
+cmake -DENABLE_SHARED=OFF .
 cmake --build . --target install
 cd ${mypath}
 
@@ -37,13 +37,13 @@ sh -c "cd deps/sqlite-autoconf-3270200 && ./configure && make install"
 
 echo build --- bzrtp
 cd deps/bzrtp-1.0.6
-cmake .
+cmake -DENABLE_SHARED=OFF .
 cmake --build . --target install
 cd ${mypath}
 
 echo build --- ortp
 cd deps/ortp-1.0.2-0
-cmake .
+cmake -DENABLE_SHARED=OFF .
 cmake --build . --target install
 cd ${mypath}
 
