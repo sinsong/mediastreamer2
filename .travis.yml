@@ -9,20 +9,68 @@ sudo: required
 
 addons:
   apt:
-    update: true
     packages:
     - cmake
     - libasound2-dev
     - libsqlite3-dev
     - wget
 
+before_install:
+  - $CC --version
+  - $CXX --version
+
 script:
   - pwd
-
-  - sudo sh build.sh
-
-  - mkdir build-mediastream && cd build-mediastream
-  - cmake ..
+  - wget --directory-prefix=../download/ `more download_depences.txt`
+  - tar -xzf ../download/bctoolbox-0.6.0.tar.gz -C ../
+  - tar -xzf ../download/ortp-1.0.2.tar.gz -C ../
+  - tar -xzf ../download/bzrtp-1.0.6.tar.gz -C ../
+  - tar -xzf ../download/mbedtls-2.16.1.tar.gz -C ../
+  - tar -xzf ../download/bcunit-3.0.2.tar.gz -C ../
+  - tar -xzf ../download/sqlite-autoconf-3270200.tar.gz -C ../
+  - tar -xzf ../download/speex-1.2.0.tar.gz -C ../
+  - tar -xzf ../download/speexdsp-1.2rc3.tar.gz -C ../
+  - tar -xzf ../download/opus-1.3.tar.gz -C ../
+  - cd ..
+  - mkdir build-mbedtls
+  - cd build-mbedtls
+  - cmake ../mbedtls-mbedtls-2.16.1
   - sudo make install
-
-  - mediastreamer2_tester --resource-dir /usr/local/share/mediastreamer2_tester/sounds/ --writable-dir ~/
+  - cd ..
+  - mkdir build-bcunit && cd build-bcunit
+  - cmake ../BCunit-3.0.2-Source
+  - sudo make install
+  - cd ..
+  - mkdir build-bctoolbox && cd build-bctoolbox
+  - cmake ../bctoolbox-0.6.0 -DENABLE_SHARED=OFF
+  - sudo make install
+  - cd ..
+  - cd sqlite-autoconf-3270200
+  - ./configure
+  - sudo make install
+  - cd ..
+  - mkdir build-bzrtp && cd build-bzrtp
+  - cmake ../bzrtp-1.0.6 -DENABLE_SHARED=OFF
+  - sudo make install
+  - cd ..
+  - mkdir build-ortp && cd build-ortp
+  - cmake ../ortp-1.0.2-0 -DENABLE_SHARED=OFF
+  - sudo make install
+  - cd ..
+  - cd speex-1.2.0
+  - ./configure
+  - sudo make install
+  - cd ..
+  - cd speexdsp-1.2rc3
+  - ./configure
+  - sudo make install
+  - cd ..
+  - cd opus-1.3
+  - ./configure
+  - sudo make install
+  - cd ..
+  - mkdir build-mediastreamer2 && cd build-mediastreamer2
+  - cmake ../mediastreamer2
+  - sudo make install
+  - cd /usr/local/share/mediastreamer2_tester/sounds/
+  - mediastreamer2_tester --writable-dir ~/
