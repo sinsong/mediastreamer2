@@ -9,6 +9,7 @@ sudo: required
 
 addons:
   apt:
+    update: true
     packages:
     - cmake
     - libasound2-dev
