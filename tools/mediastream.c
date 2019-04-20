@@ -816,13 +816,73 @@ void setup_media_streams(MediastreamDatas* args) {
 
 // 迭代
 static void mediastream_tool_iterate(MediastreamDatas* args) {
-	MSG msg;
-	Sleep(10);
-	while (PeekMessage(&msg, NULL, 0, 0,1)){
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+	struct pollfd pfd;
+	int err;
+
+	if (args->interactive){
+		pfd.fd=STDIN_FILENO;
+		pfd.events=POLLIN;
+		pfd.revents=0;
+
+		err=poll(&pfd,1,10);
+		if (err==1 && (pfd.revents & POLLIN)){
+			char commands[128];
+			int intarg;
+			commands[127]='\0';
+			ms_sleep(1);  /* ensure following text be printed after ortp messages */
+			if (args->eq)
+			ms_message("\nPlease enter equalizer requests, such as 'eq active 1', 'eq active 0', 'eq 1200 0.1 200'\n");
+
+			if (fgets(commands,sizeof(commands)-1,stdin)!=NULL){
+				MSEqualizerGain d = {0};
+				int active;
+				if (sscanf(commands,"eq active %i",&active)==1){
+					audio_stream_enable_equalizer(args->audio, args->audio->eq_loc, active);
+					ms_message("OK\n");
+				}else if (sscanf(commands,"eq %f %f %f",&d.frequency,&d.gain,&d.width)==3){
+					audio_stream_equalizer_set_gain(args->audio, args->audio->eq_loc, &d);
+					ms_message("OK\n");
+				}else if (sscanf(commands,"eq %f %f",&d.frequency,&d.gain)==2){
+					audio_stream_equalizer_set_gain(args->audio, args->audio->eq_loc, &d);
+					ms_message("OK\n");
+				}else if (strstr(commands,"dump")){
+					int n=0,i;
+					float *t;
+					MSFilter *equalizer = NULL;
+					if(args->audio->eq_loc == MSEqualizerHP) {
+						equalizer = args->audio->spk_equalizer;
+					} else if(args->audio->eq_loc == MSEqualizerMic) {
+						equalizer = args->audio->mic_equalizer;
+					}
+					if(equalizer) {
+						ms_filter_call_method(equalizer,MS_EQUALIZER_GET_NUM_FREQUENCIES,&n);
+						t=(float*)alloca(sizeof(float)*n);
+						ms_filter_call_method(equalizer,MS_EQUALIZER_DUMP_STATE,t);
+						for(i=0;i<n;++i){
+							if (fabs(t[i]-1)>0.01){
+							ms_message("%i:%f:0 ",(i*args->pt->clock_rate)/(2*n),t[i]);
+							}
+						}
+					}
+					ms_message("\nOK\n");
+				}else if (sscanf(commands,"lossrate %i",&intarg)==1){
+					args->netsim.enabled=TRUE;
+					args->netsim.loss_rate=intarg;
+					rtp_session_enable_network_simulation(args->session,&args->netsim);
+				}else if (sscanf(commands,"bandwidth %i",&intarg)==1){
+					args->netsim.enabled=TRUE;
+					args->netsim.max_bandwidth=intarg;
+					rtp_session_enable_network_simulation(args->session,&args->netsim);
+				}else if (strstr(commands,"quit")){
+					cond=0;
+				}else ms_warning("Cannot understand this.\n");
+			}
+		}else if (err==-1 && errno!=EINTR){
+			ms_fatal("mediastream's poll() returned %s",strerror(errno));
+		}
+	}else{
+		ms_usleep(10000);
 	}
-	/*no interactive mode on windows*/
 }
 
 // 开始媒体流循环
