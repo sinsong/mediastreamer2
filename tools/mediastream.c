@@ -22,52 +22,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "common.h"
 #include "mediastreamer2/msequalizer.h"
 #include "mediastreamer2/msvolume.h"
-#ifdef VIDEO_ENABLED
-#include "mediastreamer2/msv4l.h"
-#endif
 
 #include <ctype.h>
 #include <signal.h>
 #include <sys/types.h>
-#ifndef _WIN32
-#include <unistd.h>
-#include <poll.h>
-#else
 #include <malloc.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef TARGET_OS_MAC
-#include <CoreFoundation/CFRunLoop.h>
-#endif
-
-#if TARGET_OS_IPHONE
-#import <UIKit/UIKit.h>
-#include <AudioToolbox/AudioToolbox.h>
-#endif
-
-#if  TARGET_OS_IPHONE || defined (__ANDROID__)
-extern void ms_set_video_stream(VideoStream* video);
-#if TARGET_OS_IPHONE || defined(HAVE_X264)
-extern void libmsx264_init();
-#endif
-#if TARGET_OS_IPHONE || defined(HAVE_OPENH264)
-extern void libmsopenh264_init();
-#endif
-#if TARGET_OS_IPHONE || defined(HAVE_SILK)
-extern void libmssilk_init();
-#endif
-#if TARGET_OS_IPHONE || defined(HAVE_WEBRTC)
-extern void libmswebrtc_init();
-#endif
-#endif // TARGET_OS_IPHONE || defined (__ANDROID__)
-
-#ifdef __ANDROID__
-#include <android/log.h>
-#include <jni.h>
-#endif
 
 #include <ortp/b64.h>
 
@@ -164,18 +126,18 @@ typedef struct _MediastreamDatas {
 
 
 // MAIN METHODS
-/* init default arguments */
+/* 初始化默认参数 */
 MediastreamDatas* init_default_args(void);
-/* parse args */
+/* 解析参数 */
 bool_t parse_args(int argc, char** argv, MediastreamDatas* out);
-/* setup streams */
+/* 设置流 */
 void setup_media_streams(MediastreamDatas* args);
-/* run loop*/
+/* 运行循环 */
 void mediastream_run_loop(MediastreamDatas* args);
-/* exit */
+/* 结束 */
 void clear_mediastreams(MediastreamDatas* args);
 
-// HELPER METHODS
+// 辅助方法
 void stop_handler(int signum);
 static bool_t parse_addr(const char *addr, char *ip, size_t len, int *port);
 static bool_t parse_ice_addr(char* addr, char* type, size_t type_len, char* ip, size_t ip_len, int* port);
@@ -236,42 +198,13 @@ const char *usage="mediastream --local <port>\n"
 								"[ --width <pixels> ]\n"
 								"[ --zoom zoom factor ]\n"
 								"[ --zrtp (enable zrtp) ]\n"
-								#if TARGET_OS_IPHONE
-								"[ --speaker route audio to speaker ]\n"
-								#endif
 								;
 
-#if TARGET_OS_IPHONE
-int g_argc;
-char** g_argv;
-static int _main(int argc, char * argv[]);
 
-static void* apple_main(void* data) {
-	 _main(g_argc,g_argv);
-	 return NULL;
-	}
-int main(int argc, char * argv[]) {
-	pthread_t main_thread;
-	g_argc=argc;
-	g_argv=argv;
-	pthread_create(&main_thread,NULL,apple_main,NULL);
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	int value = UIApplicationMain(0, nil, nil, nil);
-	[pool release];
-	return value;
-	cond=0;
-	pthread_join(main_thread,NULL);
-	return 0;
-}
-static int _main(int argc, char * argv[])
-#endif
 
-#if !TARGET_OS_MAC && !defined(__ANDROID__)
+
 // 我们要看的 main 函数，入口点在这里！！！
 int main(int argc, char * argv[])
-#endif
-
-#if !defined(__ANDROID__) && !TARGET_OS_MAC || TARGET_OS_IPHONE
 {
 	MediastreamDatas* args; //参数
 	cond = 1;
@@ -298,7 +231,6 @@ int main(int argc, char * argv[])
 	return 0;
 }
 
-#endif
 
 // 初始化默认参数
 MediastreamDatas* init_default_args(void) {
@@ -667,21 +599,6 @@ bool_t parse_args(int argc, char** argv, MediastreamDatas* out) {
 	return TRUE;
 }
 
-
-#ifdef VIDEO_ENABLED
-static void video_stream_event_cb(void *user_pointer, const MSFilter *f, const unsigned int event_id, const void *args) {
-	MediastreamDatas *md = (MediastreamDatas *)user_pointer;
-	switch (event_id) {
-		case MS_VIDEO_DECODER_DECODING_ERRORS:
-			ms_warning("Decoding error on videostream [%p]", md->video);
-			break;
-		case MS_VIDEO_DECODER_FIRST_IMAGE_DECODED:
-			ms_message("First video frame decoded successfully on videostream [%p]", md->video);
-			break;
-	}
-}
-#endif
-
 static MSSndCard *get_sound_card(MSSndCardManager *manager, const char* card_name) {
 	MSSndCard *play = ms_snd_card_manager_get_card(manager,card_name);
 	if (play == NULL) {
@@ -717,43 +634,13 @@ void setup_media_streams(MediastreamDatas* args) {
 
 	args->factory = factory = ms_factory_new_with_voip();
 
-#if TARGET_OS_IPHONE || defined(__ANDROID__)
-#if TARGET_OS_IPHONE || (defined(HAVE_X264) && defined(VIDEO_ENABLED))
-	libmsx264_init(); /*no plugin on IOS/Android */
-#endif
-#if TARGET_OS_IPHONE || (defined (HAVE_OPENH264) && defined (VIDEO_ENABLED))
-	libmsopenh264_init(); /*no plugin on IOS/Android */
-#endif
-#if TARGET_OS_IPHONE || defined (HAVE_SILK)
-	libmssilk_init(); /*no plugin on IOS/Android */
-#endif
-#if TARGET_OS_IPHONE || defined (HAVE_WEBRTC)
-	libmswebrtc_init();
-#endif
-
-#endif /* TARGET_OS_IPHONE || defined(__ANDROID__) */
-
 	rtp_profile_set_payload(&av_profile,110,&payload_type_speex_nb);
 	rtp_profile_set_payload(&av_profile,111,&payload_type_speex_wb);
 	rtp_profile_set_payload(&av_profile,112,&payload_type_ilbc);
 	rtp_profile_set_payload(&av_profile,113,&payload_type_amr);
 	rtp_profile_set_payload(&av_profile,114,args->custom_pt);
 	rtp_profile_set_payload(&av_profile,115,&payload_type_lpc1015);
-#ifdef VIDEO_ENABLED
-	cam=ms_web_cam_new(ms_mire_webcam_desc_get());
-	if (cam) ms_web_cam_manager_add_cam(ms_factory_get_web_cam_manager(factory), cam);
-	cam=NULL;
 
-	rtp_profile_set_payload(&av_profile,26,&payload_type_jpeg);
-	rtp_profile_set_payload(&av_profile,98,&payload_type_h263_1998);
-	rtp_profile_set_payload(&av_profile,97,&payload_type_theora);
-	rtp_profile_set_payload(&av_profile,99,&payload_type_mp4v);
-	rtp_profile_set_payload(&av_profile,100,&payload_type_x_snow);
-	rtp_profile_set_payload(&av_profile,102,&payload_type_h264);
-	rtp_profile_set_payload(&av_profile,103,&payload_type_vp8);
-
-	args->video=NULL;
-#endif
 	args->profile=rtp_profile_clone_full(&av_profile);
 	args->q=ortp_ev_queue_new();
 	
@@ -911,93 +798,10 @@ void setup_media_streams(MediastreamDatas* args) {
 					args->srtp_local_master_key,
 					args->srtp_remote_master_key));
 		}
-	#if TARGET_OS_IPHONE
-		if (args->enable_speaker) {
-				ms_message("Setting audio route to spaker");
-				UInt32 audioRouteOverride = kAudioSessionOverrideAudioRoute_Speaker;
-				if (AudioSessionSetProperty(kAudioSessionProperty_OverrideAudioRoute, sizeof(audioRouteOverride),&audioRouteOverride) != kAudioSessionNoError) {
-					ms_error("Cannot set route to speaker");
-				};
-		}
-	#endif
 
 
 	}else{
-#ifdef VIDEO_ENABLED
-		float zoom[] = {
-			args->zoom,
-			args->zoom_cx, args->zoom_cy };
-		MSMediaStreamIO iodef = MS_MEDIA_STREAM_IO_INITIALIZER;
-
-		if (args->eq){
-			ms_fatal("Cannot put an audio equalizer in a video stream !");
-			exit(-1);
-		}
-		ms_message("Starting video stream.\n");
-		args->video=video_stream_new(factory, args->localport, args->localport+1, ms_is_ipv6(args->ip));
-		if (args->bw_controller){
-			ms_bandwidth_controller_add_stream(args->bw_controller, (MediaStream*)args->video);
-		}
-		if (args->video_display_filter)
-			video_stream_set_display_filter_name(args->video, args->video_display_filter);
-
-#ifdef __ANDROID__
-		if (args->device_rotation >= 0)
-			video_stream_set_device_rotation(args->video, args->device_rotation);
-#endif
-		video_stream_set_sent_video_size(args->video,args->vs);
-		video_stream_use_preview_video_window(args->video,args->two_windows);
-#if TARGET_OS_IPHONE
-		NSBundle* myBundle = [NSBundle mainBundle];
-		const char*  nowebcam = [[myBundle pathForResource:@"nowebcamCIF"ofType:@"jpg"] cStringUsingEncoding:[NSString defaultCStringEncoding]];
-		ms_static_image_set_default_image(nowebcam);
-		NSUInteger cpucount = [[NSProcessInfo processInfo] processorCount];
-		ms_factory_set_cpu_count(args->audio->ms.factory, cpucount);
-		//ms_set_cpu_count(cpucount);
-#endif
-		video_stream_set_event_callback(args->video,video_stream_event_cb, args);
-		video_stream_set_freeze_on_error(args->video,args->freeze_on_error);
-		video_stream_enable_adaptive_bitrate_control(args->video, args->rc_algo == RCAlgoSimple);
-		if (args->camera)
-			cam=ms_web_cam_manager_get_cam(ms_factory_get_web_cam_manager(factory),args->camera);
-		if (cam==NULL)
-			cam=ms_web_cam_manager_get_default_cam(ms_factory_get_web_cam_manager(factory));
-
-		if (args->infile){
-			iodef.input.type = MSResourceFile;
-			iodef.input.file = args->infile;
-		}else{
-			iodef.input.type = MSResourceCamera;
-			iodef.input.camera = cam;
-		}
-		if (args->outfile){
-			iodef.output.type = MSResourceFile;
-			iodef.output.file = args->outfile;
-		}else{
-			iodef.output.type = MSResourceDefault;
-			iodef.output.resource_arg = NULL;
-		}
-		rtp_session_set_jitter_compensation(args->video->ms.sessions.rtp_session, args->jitter);
-		video_stream_start_from_io(args->video, args->profile,
-					args->ip,args->remoteport,
-					args->ip,args->enable_rtcp?args->remoteport+1:-1,
-					args->payload,
-					&iodef
-					);
-		args->session=args->video->ms.sessions.rtp_session;
-
-		ms_filter_call_method(args->video->output,MS_VIDEO_DISPLAY_ZOOM, zoom);
-		if (args->enable_srtp) {
-			ms_message("SRTP enabled: %d",
-				video_stream_enable_strp(
-					args->video,
-					MS_AES_128_SHA1_80,
-					args->srtp_local_master_key,
-					args->srtp_remote_master_key));
-		}
-#else
 		ms_error("Error: video support not compiled.\n");
-#endif
 	}
 	ice_session_set_base_for_srflx_candidates(args->ice_session);
 	ice_session_compute_candidates_foundations(args->ice_session);
@@ -1012,75 +816,6 @@ void setup_media_streams(MediastreamDatas* args) {
 
 // 迭代
 static void mediastream_tool_iterate(MediastreamDatas* args) {
-#ifndef _WIN32
-	struct pollfd pfd;
-	int err;
-
-	if (args->interactive){
-		pfd.fd=STDIN_FILENO;
-		pfd.events=POLLIN;
-		pfd.revents=0;
-
-		err=poll(&pfd,1,10);
-		if (err==1 && (pfd.revents & POLLIN)){
-			char commands[128];
-			int intarg;
-			commands[127]='\0';
-			ms_sleep(1);  /* ensure following text be printed after ortp messages */
-			if (args->eq)
-			ms_message("\nPlease enter equalizer requests, such as 'eq active 1', 'eq active 0', 'eq 1200 0.1 200'\n");
-
-			if (fgets(commands,sizeof(commands)-1,stdin)!=NULL){
-				MSEqualizerGain d = {0};
-				int active;
-				if (sscanf(commands,"eq active %i",&active)==1){
-					audio_stream_enable_equalizer(args->audio, args->audio->eq_loc, active);
-					ms_message("OK\n");
-				}else if (sscanf(commands,"eq %f %f %f",&d.frequency,&d.gain,&d.width)==3){
-					audio_stream_equalizer_set_gain(args->audio, args->audio->eq_loc, &d);
-					ms_message("OK\n");
-				}else if (sscanf(commands,"eq %f %f",&d.frequency,&d.gain)==2){
-					audio_stream_equalizer_set_gain(args->audio, args->audio->eq_loc, &d);
-					ms_message("OK\n");
-				}else if (strstr(commands,"dump")){
-					int n=0,i;
-					float *t;
-					MSFilter *equalizer = NULL;
-					if(args->audio->eq_loc == MSEqualizerHP) {
-						equalizer = args->audio->spk_equalizer;
-					} else if(args->audio->eq_loc == MSEqualizerMic) {
-						equalizer = args->audio->mic_equalizer;
-					}
-					if(equalizer) {
-						ms_filter_call_method(equalizer,MS_EQUALIZER_GET_NUM_FREQUENCIES,&n);
-						t=(float*)alloca(sizeof(float)*n);
-						ms_filter_call_method(equalizer,MS_EQUALIZER_DUMP_STATE,t);
-						for(i=0;i<n;++i){
-							if (fabs(t[i]-1)>0.01){
-							ms_message("%i:%f:0 ",(i*args->pt->clock_rate)/(2*n),t[i]);
-							}
-						}
-					}
-					ms_message("\nOK\n");
-				}else if (sscanf(commands,"lossrate %i",&intarg)==1){
-					args->netsim.enabled=TRUE;
-					args->netsim.loss_rate=intarg;
-					rtp_session_enable_network_simulation(args->session,&args->netsim);
-				}else if (sscanf(commands,"bandwidth %i",&intarg)==1){
-					args->netsim.enabled=TRUE;
-					args->netsim.max_bandwidth=intarg;
-					rtp_session_enable_network_simulation(args->session,&args->netsim);
-				}else if (strstr(commands,"quit")){
-					cond=0;
-				}else ms_warning("Cannot understand this.\n");
-			}
-		}else if (err==-1 && errno!=EINTR){
-			ms_fatal("mediastream's poll() returned %s",strerror(errno));
-		}
-	}else{
-		ms_usleep(10000);
-	}
-#else
 	MSG msg;
 	Sleep(10);
 	while (PeekMessage(&msg, NULL, 0, 0,1)){
@@ -1088,17 +823,12 @@ static void mediastream_tool_iterate(MediastreamDatas* args) {
 		DispatchMessage(&msg);
 	}
 	/*no interactive mode on windows*/
-#endif
 }
 
 // 开始媒体流循环
 void mediastream_run_loop(MediastreamDatas* args) {
 	// 注册消息队列
 	rtp_session_register_event_queue(args->session,args->q);
-
-#if TARGET_OS_IPHONE
-	if (args->video) ms_set_video_stream(args->video); /*for IOS*/
-#endif
 
 	while(cond)
 	{
@@ -1107,10 +837,6 @@ void mediastream_run_loop(MediastreamDatas* args) {
 
 			// 迭代
 			mediastream_tool_iterate(args);
-
-#if defined(VIDEO_ENABLED)
-			if (args->video) video_stream_iterate(args->video);
-#endif
 
 			// 音频流迭代
 			if (args->audio) audio_stream_iterate(args->audio);
@@ -1128,11 +854,7 @@ void mediastream_run_loop(MediastreamDatas* args) {
 			if (args->audio) {
 				audio_load = ms_ticker_get_average_load(args->audio->ms.sessions.ticker);
 			}
-#if defined(VIDEO_ENABLED)
-			if (args->video) {
-				video_load = ms_ticker_get_average_load(args->video->ms.sessions.ticker);
-			}
-#endif
+
 			ms_message("Thread processing load: audio=%f\tvideo=%f", audio_load, video_load);
 			parse_events(args->session,args->q);
 			ms_message("Quality indicator : %f\n",args->audio ? audio_stream_get_quality_rating(args->audio) : media_stream_get_quality_rating((MediaStream*)args->video));
@@ -1151,13 +873,7 @@ void clear_mediastreams(MediastreamDatas* args) {
 	if (args->audio) {
 		audio_stream_stop(args->audio);
 	}
-#ifdef VIDEO_ENABLED
-	if (args->video) {
-		if (args->video->ms.ice_check_list) ice_check_list_destroy(args->video->ms.ice_check_list);
-		video_stream_stop(args->video);
-		ms_factory_log_statistics(args->video->ms.factory);
-	}
-#endif
+
 	if (args->ice_session) ice_session_destroy(args->ice_session);
 	ortp_ev_queue_destroy(args->q);
 	rtp_profile_destroy(args->profile);
@@ -1167,114 +883,6 @@ void clear_mediastreams(MediastreamDatas* args) {
 
 	ms_factory_destroy(args->factory);
 }
-
-// ANDROID JNI WRAPPER
-#ifdef __ANDROID__
-JNIEXPORT jint JNICALL  JNI_OnLoad(JavaVM *ajvm, void *reserved)
-{
-	ms_set_jvm(ajvm);
-
-	return JNI_VERSION_1_2;
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_setVideoWindowId
-  (JNIEnv *env, jobject obj, jobject id, jint _args) {
-#ifdef VIDEO_ENABLED
-	MediastreamDatas* args =  (MediastreamDatas*)_args;
-	if (!args->video)
-		return;
-	video_stream_set_native_window_id(args->video,id);
-#endif
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_setVideoPreviewWindowId
-  (JNIEnv *env, jobject obj, jobject id, jint _args) {
-#ifdef VIDEO_ENABLED
-	MediastreamDatas* args =  (MediastreamDatas*)_args;
-	if (!args->video)
-		return;
-	video_stream_set_native_preview_window_id(args->video,id);
-#endif
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_setDeviceRotation
-  (JNIEnv *env, jobject thiz, jint rotation, jint _args) {
-#ifdef VIDEO_ENABLED
-	MediastreamDatas* args =  (MediastreamDatas*)_args;
-	if (!args->video)
-		return;
-	video_stream_set_device_rotation(args->video, rotation);
-#endif
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_changeCamera
-  (JNIEnv *env, jobject obj, jint camId, jint _args) {
-#ifdef VIDEO_ENABLED
-	MediastreamDatas* args =  (MediastreamDatas*)_args;
-	if (!args->video)
-		return;
-	char* id = (char*)malloc(15);
-	snprintf(id, 15, "Android%d", camId);
-	ms_message("Changing camera, trying to use: '%s'\n", id);
-	video_stream_change_camera(args->video, ms_web_cam_manager_get_cam(ms_factory_get_web_cam_manager(args->video->ms.factory), id));
-#endif
-}
-
-JNIEXPORT jint JNICALL Java_org_linphone_mediastream_MediastreamerActivity_stopMediaStream
-  (JNIEnv *env, jobject obj) {
-	ms_message("Requesting mediastream to stop\n");
-	stop_handler(0);
-	return 0;
-}
-
-JNIEXPORT jint JNICALL Java_org_linphone_mediastream_MediastreamerActivity_initDefaultArgs
-  (JNIEnv *env, jobject obj) {
-	cond = 1;
-	return (unsigned int)init_default_args();
-}
-
-JNIEXPORT jboolean JNICALL Java_org_linphone_mediastream_MediastreamerActivity_parseArgs
-  (JNIEnv *env, jobject obj, jint jargc, jobjectArray jargv, jint args) {
-	// translate java String[] to c char*[]
-	char** argv = (char**) malloc(jargc * sizeof(char*));
-	int i;
-
-	for(i=0; i<jargc; i++) {
-		jstring arg = (jstring) (*env)->GetObjectArrayElement(env, jargv, i);
-		const char *str = (*env)->GetStringUTFChars(env, arg, NULL);
-		if (str == NULL)
-			argv[i] = NULL;
-		else {
-			argv[i] = strdup(str);
-			(*env)->ReleaseStringUTFChars(env, arg, str);
-		}
-	}
-
-	bool_t result = parse_args(jargc, argv, (MediastreamDatas*)args);
-
-	for(i=0; i<jargc; i++) {
-		if (argv[i])
-			free(argv[i]);
-	}
-	return result;
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_setupMediaStreams
-  (JNIEnv *env, jobject obj, jint args) {
-	setup_media_streams((MediastreamDatas*)args);
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_runLoop
-  (JNIEnv *env, jobject obj, jint args) {
-	mediastream_run_loop((MediastreamDatas*)args);
-}
-
-JNIEXPORT void JNICALL Java_org_linphone_mediastream_MediastreamerActivity_clear
-  (JNIEnv *env, jobject obj, jint args) {
-	clear_mediastreams((MediastreamDatas*)args);
-	free((MediastreamDatas*)args);
-}
-#endif
 
 // HELPER METHODS
 void stop_handler(int signum)
