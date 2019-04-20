@@ -53,16 +53,16 @@ static void display_items(void *user_data, uint32_t csrc, rtcp_sdes_type_t t, co
 	switch(t)
 	{
 		case RTCP_SDES_CNAME:
-			ms_message("Found CNAME=%s",str);
+			printf("Found CNAME=%s",str);
 		break;
 		case RTCP_SDES_TOOL:
-			ms_message("Found TOOL=%s",str);
+			printf("Found TOOL=%s",str);
 		break;
 		case RTCP_SDES_NOTE:
-			ms_message("Found NOTE=%s",str);
+			printf("Found NOTE=%s",str);
 		break;
 		default:
-			ms_message("Unhandled SDES item (%s)",str);
+			printf("Unhandled SDES item (%s)",str);
 	}
 }
 
@@ -70,21 +70,21 @@ static void parse_rtcp(mblk_t *m){
 	do{
 		if (rtcp_is_RR(m))
 		{
-			ms_message("Receiving RTCP RR");
+			printf("Receiving RTCP RR");
 		}else 
 			if (rtcp_is_SR(m))
 			{
-			ms_message("Receiving RTCP SR");
+			printf("Receiving RTCP SR");
 			}
 			else 
 				if (rtcp_is_SDES(m))
 				{
-					ms_message("Receiving RTCP SDES");
+					printf("Receiving RTCP SDES");
 					rtcp_sdes_parse(m,display_items,NULL);
 				}
 				else
 				{
-					ms_message("Receiving unhandled RTCP message");
+					printf("Receiving unhandled RTCP message");
 				}
 	}while(rtcp_next_packet(m));
 }
@@ -101,7 +101,7 @@ static void parse_events(RtpSession *session, OrtpEvQueue *q){
 				parse_rtcp(d->packet);
 			break;
 			case ORTP_EVENT_RTCP_PACKET_EMITTED:
-				ms_message("Jitter buffer size: %f ms",rtp_session_get_jitter_stats(session)->jitter_buffer_size_ms);
+				printf("Jitter buffer size: %f ms",rtp_session_get_jitter_stats(session)->jitter_buffer_size_ms);
 			break;
 			default:
 			break;
@@ -170,7 +170,7 @@ int main()
 	printf("[localport] >>> ");
 	scanf("%d", &localport);
 	printf("[remote] >>> ");
-	fgets(addr, 64, stdin);
+	scanf("%s", addr);
 	parse_addr(addr, ip, 64, &remoteport);
 
 	printf("--------------------\n");
@@ -297,7 +297,7 @@ int main()
 		if (session){
 			float audio_load = 0;
 
-			ms_message("Bandwidth usage: download=%f kbits/sec, upload=%f kbits/sec\n",
+			printf("Bandwidth usage: download=%f kbits/sec, upload=%f kbits/sec\n",
 				rtp_session_get_recv_bandwidth(session)*1e-3,
 				rtp_session_get_send_bandwidth(session)*1e-3);
 
@@ -305,15 +305,15 @@ int main()
 				audio_load = ms_ticker_get_average_load(audio->ms.sessions.ticker);
 			}
 
-			ms_message("Thread processing load: audio=%f", audio_load);
+			printf("Thread processing load: audio=%f", audio_load);
 			parse_events(session,q); // 这是个局部函数。。。
-			ms_message("Quality indicator : %f\n", audio_stream_get_quality_rating(audio));
+			printf("Quality indicator : %f\n", audio_stream_get_quality_rating(audio));
 		}
 	}
 	
 	// clear -------------------------------------------------------------------
-	ms_message("stopping all...\n");
-	ms_message("Average quality indicator: %f",audio ? audio_stream_get_average_quality_rating(audio) : -1);
+	printf("stopping all...\n");
+	printf("Average quality indicator: %f",audio ? audio_stream_get_average_quality_rating(audio) : -1);
 	
 	
 	if (audio) {
