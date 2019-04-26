@@ -29,9 +29,6 @@ struct _MSFactory{
 	MSList *desc_list;
 	MSList *stats_list;
 	MSList *offer_answer_provider_list;
-#ifdef _WIN32
-	MSList *ms_plugins_loaded_list;
-#endif
 	MSList *formats;
 	MSList *platform_tags;
 	char *plugins_dir;

@@ -26,9 +26,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ortp/str_utils.h>
 #include <ortp/payloadtype.h>
 #include <time.h>
-#if defined(__APPLE__)
-#include "TargetConditionals.h"
-#endif
 
 #if defined(__arm__) || defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM)
 #define MS_HAS_ARM 1
@@ -77,43 +74,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define MS2_INLINE ORTP_INLINE
 
-#ifdef _WIN32
-#if defined(__MINGW32__) || !defined(WINAPI_FAMILY_PARTITION) || !defined(WINAPI_PARTITION_DESKTOP)
-#define MS2_WINDOWS_DESKTOP 1
-#elif defined(WINAPI_FAMILY_PARTITION)
-#if defined(WINAPI_PARTITION_DESKTOP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#define MS2_WINDOWS_DESKTOP 1
-#elif defined(WINAPI_PARTITION_PHONE_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_PHONE_APP)
-#define MS2_WINDOWS_PHONE 1
-#elif defined(WINAPI_PARTITION_APP) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
-#define MS2_WINDOWS_UNIVERSAL 1
-#endif
-#endif
-#endif
-
-#if defined(_MSC_VER)
-#ifdef MS2_STATIC
 #define MS2_PUBLIC
 #define MS2_VAR_PUBLIC extern
-#else
-#ifdef MS2_EXPORTS
-#define MS2_PUBLIC	__declspec(dllexport)
-#define MS2_VAR_PUBLIC extern __declspec(dllexport)
-#else
-#define MS2_PUBLIC	__declspec(dllimport)
-#define MS2_VAR_PUBLIC extern __declspec(dllimport)
-#endif
-#endif
-#else
-#define MS2_PUBLIC
-#define MS2_VAR_PUBLIC extern
-#endif
 
-#if defined(_WIN32_WCE)
-time_t ms_time (time_t *t);
-#else
 #define ms_time time
-#endif
 
 #ifdef DEBUG
 static MS2_INLINE void ms_debug(const char *fmt,...)
@@ -549,13 +513,6 @@ MS2_PUBLIC char *ms_load_path_content(const char *path, size_t *nbytes);
 #  include "mediastreamer-config.h" /*necessary to know if ENABLE_NLS is there*/
 #  endif
 
-#ifdef _WIN32
-#include <malloc.h> //for alloca
-#ifdef _MSC_VER
-#define alloca _alloca
-#endif
-#endif
-
 #  if defined(ENABLE_NLS)
 
 #ifdef _MSC_VER
@@ -577,8 +534,5 @@ MS2_PUBLIC char *ms_load_path_content(const char *path, size_t *nbytes);
 #define N_(String) (String)
 #endif // MS2_INTERNAL
 
-#ifdef __ANDROID__
-#include "mediastreamer2/msjava.h"
-#endif
 #endif
 

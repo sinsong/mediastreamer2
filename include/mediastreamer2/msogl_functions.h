@@ -20,24 +20,7 @@
 #ifndef msogl_functions_h
 #define msogl_functions_h
 
-#ifdef __APPLE__
-   #include "TargetConditionals.h"
-#endif
-
-#if TARGET_OS_IPHONE
-	#include <OpenGLES/ES2/gl.h>
-	#include <OpenGLES/ES2/glext.h>
-#elif TARGET_OS_MAC
-	#include <OpenGL/OpenGL.h>
-	#include <OpenGL/gl.h>
-#elif __ANDROID__
-	#include <GLES2/gl2.h>
-	#include <GLES2/gl2ext.h>
-#elif _WIN32
-	#if !defined(QOPENGLFUNCTIONS_H)
-		#include <GLES3/gl3.h>
-	#endif
-#elif !defined(QOPENGLFUNCTIONS_H) // glew is already included by QT.
+#if !defined(QOPENGLFUNCTIONS_H) // glew is already included by QT.
 	#include <GL/glew.h>
 #endif
 
