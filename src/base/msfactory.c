@@ -33,24 +33,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "mediastreamer2/mseventqueue.h"
 #include "basedescs.h"
 
-#if !defined(_WIN32_WCE)
 #include <sys/types.h>
-#endif
-#ifndef _WIN32
+
 #include <dirent.h>
-#else
-#ifndef PACKAGE_PLUGINS_DIR
-#if defined(_WIN32) || defined(_WIN32_WCE)
-#ifdef MS2_WINDOWS_DESKTOP
-#define PACKAGE_PLUGINS_DIR "lib\\mediastreamer\\plugins\\"
-#else
-#define PACKAGE_PLUGINS_DIR "."
-#endif
-#else
-#define PACKAGE_PLUGINS_DIR "."
-#endif
-#endif
-#endif
 
 #ifndef PACKAGE_DATA_DIR
 #define PACKAGE_DATA_DIR "share"
@@ -58,10 +43,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #ifdef HAVE_DLOPEN
 #include <dlfcn.h>
-#endif
-
-#ifdef __APPLE__
-   #include "TargetConditionals.h"
 #endif
 
 
@@ -156,15 +137,9 @@ void ms_factory_init(MSFactory *obj){
 	long num_cpu=1;
 	char *debug_log_enabled = NULL;
 	char *tags;
-#ifdef _WIN32
-	SYSTEM_INFO sysinfo;
-#endif
 
 #if defined(ENABLE_NLS)
 	bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
-#endif
-#ifndef MS2_WINDOWS_UNIVERSAL
-	debug_log_enabled=getenv("MEDIASTREAMER_DEBUG");
 #endif
 	if (debug_log_enabled!=NULL && (strcmp("1",debug_log_enabled)==0) ){
 		ortp_set_log_level_mask(ORTP_LOG_DOMAIN, ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
@@ -176,37 +151,15 @@ void ms_factory_init(MSFactory *obj){
 		ms_factory_register_filter(obj,ms_base_filter_descs[i]);
 	}
 
-#ifdef _WIN32 /*fixme to be tested*/
-	GetNativeSystemInfo( &sysinfo );
-
-	num_cpu = sysinfo.dwNumberOfProcessors;
-#elif __APPLE__ || __linux
+#if __APPLE__ || __linux
 	num_cpu = sysconf( _SC_NPROCESSORS_CONF); /*check the number of processors configured, not just the one that are currently active.*/
 #else
 #warning "There is no code that detects the number of CPU for this platform."
 #endif
 	ms_factory_set_cpu_count(obj,num_cpu);
 	ms_factory_set_mtu(obj,MS_MTU_DEFAULT);
-#ifdef _WIN32
-	ms_factory_add_platform_tag(obj, "win32");
-#ifdef MS2_WINDOWS_PHONE
-	ms_factory_add_platform_tag(obj, "windowsphone");
-#endif
-#ifdef MS2_WINDOWS_UNIVERSAL
-	ms_factory_add_platform_tag(obj, "windowsuniversal");
-#endif
-#endif
-#ifdef __APPLE__
-	ms_factory_add_platform_tag(obj, "apple");
-#endif
 #ifdef __linux
 	ms_factory_add_platform_tag(obj, "linux");
-#endif
-#ifdef __ANDROID__
-	ms_factory_add_platform_tag(obj, "android");
-#endif
-#ifdef TARGET_OS_IPHONE
-	ms_factory_add_platform_tag(obj, "ios");
 #endif
 #if defined(__arm__) || defined(_M_ARM)
 	ms_factory_add_platform_tag(obj, "arm");
@@ -473,120 +426,7 @@ typedef void (*init_func_t)(MSFactory *);
 
 int ms_factory_load_plugins(MSFactory *factory, const char *dir){
 	int num=0;
-#if defined(_WIN32) && !defined(_WIN32_WCE)
-	WIN32_FIND_DATA FileData;
-	HANDLE hSearch;
-	char szDirPath[1024];
-#ifdef UNICODE
-	wchar_t wszDirPath[1024];
-#endif
-	char szPluginFile[1024];
-	BOOL fFinished = FALSE;
-	const char *tmp = NULL;
-	BOOL debug = FALSE;
-#ifndef MS2_WINDOWS_UNIVERSAL
-	tmp = getenv("DEBUG");
-#endif
-	debug = (tmp != NULL && atoi(tmp) == 1);
-
-	snprintf(szDirPath, sizeof(szDirPath), "%s", dir);
-
-	// Start searching for .dll files in the current directory.
-	snprintf(szDirPath, sizeof(szDirPath), "%s\\libms*.dll", dir);
-#ifdef UNICODE
-	mbstowcs(wszDirPath, szDirPath, sizeof(wszDirPath));
-	hSearch = FindFirstFileExW(wszDirPath, FindExInfoStandard, &FileData, FindExSearchNameMatch, NULL, 0);
-#else
-	hSearch = FindFirstFileExA(szDirPath, FindExInfoStandard, &FileData, FindExSearchNameMatch, NULL, 0);
-#endif
-	if (hSearch == INVALID_HANDLE_VALUE)
-	{
-		ms_message("no plugin (*.dll) found in [%s] [%d].", szDirPath, (int)GetLastError());
-		return 0;
-	}
-	snprintf(szDirPath, sizeof(szDirPath), "%s", dir);
-
-	while (!fFinished)
-	{
-		/* load library */
-#ifdef MS2_WINDOWS_DESKTOP
-		UINT em=0;
-#endif
-		HINSTANCE os_handle;
-#ifdef UNICODE
-		wchar_t wszPluginFile[2048];
-		char filename[512];
-		wcstombs(filename, FileData.cFileName, sizeof(filename));
-		snprintf(szPluginFile, sizeof(szPluginFile), "%s\\%s", szDirPath, filename);
-		mbstowcs(wszPluginFile, szPluginFile, sizeof(wszPluginFile));
-#else
-		snprintf(szPluginFile, sizeof(szPluginFile), "%s\\%s", szDirPath, FileData.cFileName);
-#endif
-#ifdef MS2_WINDOWS_DESKTOP
-		if (!debug) em = SetErrorMode (SEM_FAILCRITICALERRORS);
-
-#ifdef UNICODE
-		os_handle = LoadLibraryExW(wszPluginFile, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-#else
-		os_handle = LoadLibraryExA(szPluginFile, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-#endif
-		if (os_handle==NULL)
-		{
-			ms_message("Fail to load plugin %s with altered search path: error %i",szPluginFile,(int)GetLastError());
-#ifdef UNICODE
-			os_handle = LoadLibraryExW(wszPluginFile, NULL, 0);
-#else
-			os_handle = LoadLibraryExA(szPluginFile, NULL, 0);
-#endif
-		}
-		if (!debug) SetErrorMode (em);
-#else
-		os_handle = LoadPackagedLibrary(wszPluginFile, 0);
-#endif
-		if (os_handle==NULL)
-			ms_error("Fail to load plugin %s: error %i", szPluginFile, (int)GetLastError());
-		else{
-			init_func_t initroutine;
-			char szPluginName[256];
-			char szMethodName[256];
-			char *minus;
-#ifdef UNICODE
-			snprintf(szPluginName, sizeof(szPluginName), "%s", filename);
-#else
-			snprintf(szPluginName, sizeof(szPluginName), "%s", FileData.cFileName);
-#endif
-			/*on mingw, dll names might be libsomething-3.dll. We must skip the -X.dll stuff*/
-			minus=strchr(szPluginName,'-');
-			if (minus) *minus='\0';
-			else szPluginName[strlen(szPluginName)-4]='\0'; /*remove .dll*/
-			snprintf(szMethodName, sizeof(szMethodName), "%s_init", szPluginName);
-			initroutine = (init_func_t) GetProcAddress (os_handle, szMethodName);
-				if (initroutine!=NULL){
-					initroutine(factory);
-					ms_message("Plugin loaded (%s)", szPluginFile);
-					// Add this new loaded plugin to the list (useful for FreeLibrary at the end)
-					factory->ms_plugins_loaded_list=bctbx_list_append(factory->ms_plugins_loaded_list,os_handle);
-					num++;
-				}else{
-					ms_warning("Could not locate init routine of plugin %s. Should be %s",
-					szPluginFile, szMethodName);
-				}
-		}
-		if (!FindNextFile(hSearch, &FileData)) {
-			if (GetLastError() == ERROR_NO_MORE_FILES){
-				fFinished = TRUE;
-			}
-			else
-			{
-				ms_error("couldn't find next plugin dll.");
-				fFinished = TRUE;
-			}
-		}
-	}
-	/* Close the search handle. */
-	FindClose(hSearch);
-
-#elif defined(HAVE_DLOPEN)
+#if defined(HAVE_DLOPEN)
 	char plugin_name[64];
 	DIR *ds;
 	bctbx_list_t *loaded_plugins = NULL;
@@ -658,19 +498,6 @@ int ms_factory_load_plugins(MSFactory *factory, const char *dir){
 }
 
 void ms_factory_uninit_plugins(MSFactory *factory){
-#if defined(_WIN32)
-	bctbx_list_t *elem;
-#endif
-
-#if defined(_WIN32)
-	for(elem=factory->ms_plugins_loaded_list;elem!=NULL;elem=elem->next)
-	{
-		HINSTANCE handle=(HINSTANCE )elem->data;
-		FreeLibrary(handle) ;
-	}
-
-	factory->ms_plugins_loaded_list = bctbx_list_free(factory->ms_plugins_loaded_list);
-#endif
 }
 
 void ms_factory_init_plugins(MSFactory *obj) {
@@ -873,95 +700,9 @@ int ms_factory_get_expected_bandwidth(MSFactory *f) {
 	return f->expected_video_bandwidth;
 }
 
-#ifdef __ANDROID__
-#include "sys/system_properties.h"
-#include <jni.h>
 
-
-#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
-
-JNIEXPORT jint JNICALL Java_org_linphone_mediastream_Factory_enableFilterFromName(JNIEnv* env,  jobject obj, jlong factoryPtr, jstring jname, jboolean enable) {
-	MSFactory *factory = (MSFactory *) factoryPtr;
-	const char *name = jname ? (*env)->GetStringUTFChars(env, jname, NULL) : NULL;
-	int result = ms_factory_enable_filter_from_name(factory, name, enable);
-	(*env)->ReleaseStringUTFChars(env, jname, name);
-	return result;
-}
-JNIEXPORT jboolean JNICALL Java_org_linphone_mediastream_Factory_filterFromNameEnabled(JNIEnv* env, jobject obj, jlong factoryPtr, jstring jname) {
-	const char *name = jname ? (*env)->GetStringUTFChars(env, jname, NULL) : NULL;
-	MSFactory *factory = (MSFactory *) factoryPtr;
-	jboolean result = ms_factory_filter_from_name_enabled(factory, name);
-	(*env)->ReleaseStringUTFChars(env, jname, name);
-	return result;
-}
-
-
-JNIEXPORT jstring JNICALL Java_org_linphone_mediastream_Factory_getEncoderText(JNIEnv* env, jobject obj,
-    jlong factoryPtr, jstring jmime) {
-	MSFactory *factory = (MSFactory*)factoryPtr;
-	const char *mime = (*env)->GetStringUTFChars(env, jmime, NULL);
-	jstring jtext = NULL;
-	if (mime){
-		MSFilterDesc *desc = ms_factory_get_encoder(factory, mime);
-		if (desc) jtext =(*env)->NewStringUTF(env, desc->text);
-		(*env)->ReleaseStringUTFChars(env, jmime, mime);
-	}
-	return jtext;
-}
-
-JNIEXPORT jstring JNICALL Java_org_linphone_mediastream_Factory_getDecoderText(JNIEnv* env, jobject obj,
-    jlong factoryPtr, jstring jmime) {
-	MSFactory *factory = (MSFactory*)factoryPtr;
-	const char *mime = (*env)->GetStringUTFChars(env, jmime, NULL);
-	jstring jtext = NULL;
-	if (mime){
-		MSFilterDesc *desc = ms_factory_get_decoder(factory, mime);
-		if (desc) jtext = (*env)->NewStringUTF(env, desc->text);
-		(*env)->ReleaseStringUTFChars(env, jmime, mime);
-	}
-	return jtext;
-}
-
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#else
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
-JNIEXPORT jint JNICALL Java_org_linphone_mediastream_MediastreamerAndroidContext_enableFilterFromNameImpl(JNIEnv* env,  jobject obj, jstring jname, jboolean enable) {
-	const char *mime;
-	int result;
-	if (ms_factory_get_fallback() == NULL) {
-		ms_error("Java_org_linphone_mediastream_MediastreamerAndroidContext_enableFilterFromNameImpl(): no fallback factory. Use Factory.enableFilterFromName()");
-		return -1;
-	}
-	mime = jname ? (*env)->GetStringUTFChars(env, jname, NULL) : NULL;
-	result = ms_factory_enable_filter_from_name(ms_factory_get_fallback(),mime,enable);
-	(*env)->ReleaseStringUTFChars(env, jname, mime);
-	return result;
-}
-JNIEXPORT jboolean JNICALL Java_org_linphone_mediastream_MediastreamerAndroidContext_filterFromNameEnabledImpl(JNIEnv* env, jobject obj, jstring jname) {
-	const char *mime;
-	jboolean result;
-	if (ms_factory_get_fallback() == NULL) {
-		ms_error("Java_org_linphone_mediastream_MediastreamerAndroidContext_filterFromNameEnabledImpl(): no fallback factory. Use Factory.filterFromNameEnabled()");
-		return FALSE;
-	}
-	mime = jname ? (*env)->GetStringUTFChars(env, jname, NULL) : NULL;
-	result = ms_factory_filter_from_name_enabled(ms_factory_get_fallback(),mime);
-	(*env)->ReleaseStringUTFChars(env, jname, mime);
-	return result;
-}
-
-#endif
-
-
-
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#else
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 /**
 * Destroy the factory.

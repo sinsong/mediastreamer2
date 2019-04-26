@@ -291,11 +291,7 @@ void ms_filter_clean_pending_events(MSFilter *f){
 }
 
 /* we need this pragma because this file implements much of compatibility functions*/
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#else
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 void ms_set_global_event_queue(MSEventQueue *q){
 	ms_factory_set_event_queue(ms_factory_get_fallback(),q);

@@ -60,22 +60,15 @@ char * ortp_strdup_vprintf(const char *fmt, va_list ap)
 	/* Guess we need no more than 100 bytes. */
 	int n, size = 200;
 	char *p,*np;
-#ifndef _WIN32
 	va_list cap;/*copy of our argument list: a va_list cannot be re-used (SIGSEGV on linux 64 bits)*/
-#endif
 	if ((p = (char *) ortp_malloc (size)) == NULL)
 		return NULL;
 	while (1)
 	{
 		/* Try to print in the allocated space. */
-#ifndef _WIN32
 		va_copy(cap,ap);
 		n = vsnprintf (p, size, fmt, cap);
 		va_end(cap);
-#else
-		/*this works on 32 bits, luckily*/
-		n = vsnprintf (p, size, fmt, ap);
-#endif
 		/* If that worked, return the string. */
 		if (n > -1 && n < size)
 			return p;
@@ -106,22 +99,8 @@ char *ortp_strdup_printf(const char *fmt,...){
 	return ret;
 }
 
-#if	defined(_WIN32) || defined(_WIN32_WCE)
-#define ENDLINE "\r\n"
-#else
 #define ENDLINE "\n"
-#endif
 
-#if	defined(_WIN32) || defined(_WIN32_WCE)
-void ortp_logv(int level, const char *fmt, va_list args)
-{
-	if (ortp_logv_out!=NULL && ortp_log_level_enabled(level))
-		ortp_logv_out(level,fmt,args);
-#if !defined(_WIN32_WCE)
-	if ((level)==ORTP_FATAL) abort();
-#endif
-}
-#endif
 
 static void __ortp_logv_out(OrtpLogLevel lev, const char *fmt, va_list args){
 	const char *lname="undef";
@@ -147,10 +126,6 @@ static void __ortp_logv_out(OrtpLogLevel lev, const char *fmt, va_list args){
 			ortp_fatal("Bad level !");
 	}
 	msg=ortp_strdup_vprintf(fmt,args);
-#if defined(_MSC_VER) && !defined(_WIN32_WCE)
-	OutputDebugString(msg);
-	OutputDebugString("\r\n");
-#endif
 	fprintf(__log_file,"ortp-%s-%s" ENDLINE,lname,msg);
 	fflush(__log_file);
 	ortp_free(msg);

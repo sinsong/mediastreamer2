@@ -23,27 +23,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "mediastreamer2/mscodecutils.h"
 #include "mediastreamer2/msfilter.h"
 
-#if !defined(_WIN32_WCE)
 #include <sys/types.h>
-#endif
-#ifndef _WIN32
-#include <dirent.h>
-#endif
 #ifdef HAVE_DLOPEN
 #include <dlfcn.h>
 #endif
 
-#ifdef __APPLE__
-   #include "TargetConditionals.h"
-#endif
-
 
 /* we need this pragma because this file implements much of compatibility functions*/
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#else
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 unsigned int ms_get_cpu_count() {
 	return ms_factory_get_cpu_count(ms_factory_get_fallback());

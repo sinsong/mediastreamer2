@@ -278,11 +278,7 @@ int ms_discover_mtu(const char*host){
 
 
 /* we need this pragma because this file implements compatibility functions*/
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#else
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 
 void ms_set_mtu(int mtu){

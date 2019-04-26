@@ -24,11 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define MS_FILTER_METHOD_GET_INDEX(id) ( ((id)>>8) & 0XFF)
 
 /* we need this pragma because this file implements much of compatibility functions*/
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#else
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 void ms_filter_register(MSFilterDesc *desc){
 	MSFactory *factory = ms_factory_get_fallback();

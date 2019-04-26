@@ -307,30 +307,6 @@ static int set_high_prio(MSTicker *obj){
 	int prio=obj->prio;
 
 	if (prio>MS_TICKER_PRIO_NORMAL){
-#ifdef _WIN32
-#ifdef MS2_WINDOWS_DESKTOP
-		MMRESULT mm;
-		TIMECAPS ptc;
-		mm=timeGetDevCaps(&ptc,sizeof(ptc));
-		if (mm==0){
-			if (ptc.wPeriodMin<(UINT)precision)
-				ptc.wPeriodMin=precision;
-			else
-				precision = ptc.wPeriodMin;
-			mm=timeBeginPeriod(ptc.wPeriodMin);
-			if (mm!=TIMERR_NOERROR){
-				ms_warning("timeBeginPeriod failed.");
-			}
-			ms_message("win32 timer resolution set to %i ms",ptc.wPeriodMin);
-		}else{
-			ms_warning("timeGetDevCaps failed.");
-		}
-
-		if(!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST)){
-			ms_warning("SetThreadPriority() failed (%d)\n", (int)GetLastError());
-		}
-#endif
-#else
 		struct sched_param param;
 		int policy=SCHED_RR;
 		int result=0;
@@ -369,20 +345,11 @@ static int set_high_prio(MSTicker *obj){
 			ms_message("%s priority set to %s and value (%i)",obj->name,
 			           policy==SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR", param.sched_priority);
 		}
-#endif
 	}else ms_message("%s priority left to normal.",obj->name);
 	return precision;
 }
 
 static void unset_high_prio(int precision){
-#ifdef _WIN32
-#ifdef MS2_WINDOWS_DESKTOP
-	if(!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL)){
-		ms_warning("SetThreadPriority() failed (%d)\n", (int)GetLastError());
-	}
-	timeEndPeriod(precision);
-#endif
-#endif
 }
 
 static int wait_next_tick(void *data, uint64_t virt_ticker_time){

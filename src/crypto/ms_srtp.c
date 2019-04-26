@@ -34,13 +34,7 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
-#if defined(MS2_WINDOWS_PHONE)
-// Windows phone doesn't use make install
-#include <srtp.h>
-#else
 #include <srtp/srtp.h>
-#endif
-
 
 #include "ortp/b64.h"
 
