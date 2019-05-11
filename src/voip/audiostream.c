@@ -38,21 +38,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "mediastreamer2/msgenericplc.h"
 #include "mediastreamer2/mseventqueue.h"
 #include "private.h"
-
-#ifdef __ANDROID__
-#include "mediastreamer2/devices.h"
-#endif
-
-#if __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <sys/types.h>
-
-#ifndef _WIN32
-	#include <sys/socket.h>
-	#include <netdb.h>
-#endif
+#include <sys/socket.h>
+#include <netdb.h>
 
 static void configure_av_recorder(AudioStream *stream);
 static void configure_decoder(AudioStream *stream, PayloadType *pt, int sample_rate, int nchannels);
@@ -250,16 +238,8 @@ void audio_stream_prepare_sound(AudioStream *stream, MSSndCard *playcard, MSSndC
 	ms_filter_call_method(stream->dummy,MS_RTP_RECV_SET_SESSION,stream->ms.sessions.rtp_session);
 
 	if (captcard && playcard){
-#if TARGET_OS_IPHONE
-		int muted = 1;
-		stream->soundread=ms_snd_card_create_reader(captcard);
-		stream->soundwrite=ms_snd_card_create_writer(playcard);
-		ms_filter_link(stream->dummy,0,stream->soundwrite,0);
-		ms_filter_call_method(stream->soundwrite, MS_AUDIO_PLAYBACK_MUTE, &muted);
-#else
 		stream->ms.voidsink=ms_factory_create_filter(stream->ms.factory,  MS_VOID_SINK_ID);
 		ms_filter_link(stream->dummy,0,stream->ms.voidsink,0);
-#endif
 	} else {
 		stream->ms.voidsink=ms_factory_create_filter(stream->ms.factory,  MS_VOID_SINK_ID);
 		ms_filter_link(stream->dummy,0,stream->ms.voidsink,0);
@@ -273,14 +253,6 @@ void audio_stream_prepare_sound(AudioStream *stream, MSSndCard *playcard, MSSndC
 static void _audio_stream_unprepare_sound(AudioStream *stream, bool_t keep_sound_resources){
 	if (stream->ms.state==MSStreamPreparing){
 		stop_preload_graph(stream);
-#if TARGET_OS_IPHONE
-		if (!keep_sound_resources){
-			if (stream->soundread) ms_filter_destroy(stream->soundread);
-			stream->soundread=NULL;
-			if (stream->soundwrite) ms_filter_destroy(stream->soundwrite);
-			stream->soundwrite=NULL;
-		}
-#endif
 	}
 	stream->ms.state=MSStreamInitialized;
 }
@@ -602,12 +574,6 @@ static void video_input_updated(void *stream, MSFilter *f, unsigned int event_id
 }
 
 static void av_recorder_handle_event(void *userdata, MSFilter *recorder, unsigned int event, void *event_arg){
-#ifdef VIDEO_ENABLED
-	AudioStream *audiostream = (AudioStream *)userdata;
-	if (audiostream->videostream != NULL) {
-		video_recorder_handle_event(audiostream->videostream, recorder, event, event_arg);
-	}
-#endif
 }
 
 static void setup_av_recorder(AudioStream *stream, int sample_rate, int nchannels){
@@ -781,6 +747,8 @@ static int get_usable_telephone_event(RtpProfile *profile, int clock_rate){
 
 int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const char *rem_rtp_ip, int rem_rtp_port,
 	const char *rem_rtcp_ip, int rem_rtcp_port, int payload, const MSMediaStreamIO *io) {
+	
+	// 得到会话
 	RtpSession *rtps=stream->ms.sessions.rtp_session;
 	PayloadType *pt;
 	int tmp, tev_pt;
@@ -793,35 +761,46 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 	bool_t skip_encoder_and_decoder = FALSE;
 	bool_t do_ts_adjustments = TRUE;
 
+	// 不一致就挂？
 	if (!ms_media_stream_io_is_consistent(io)) return -1;
 
-	rtp_session_set_profile(rtps,profile);
-	if (rem_rtp_port>0) rtp_session_set_remote_addr_full(rtps,rem_rtp_ip,rem_rtp_port,rem_rtcp_ip,rem_rtcp_port);
+	rtp_session_set_profile(rtps,profile); // session <-> profile(arg)
+
+	// rtp 远程端口有效 设置远程端口
+	if (rem_rtp_port > 0) rtp_session_set_remote_addr_full(rtps,rem_rtp_ip,rem_rtp_port,rem_rtcp_ip,rem_rtcp_port);
+	// rtcp 有效，启动
 	if (rem_rtcp_port > 0) {
 		rtp_session_enable_rtcp(rtps, TRUE);
 	} else {
 		rtp_session_enable_rtcp(rtps, FALSE);
 	}
-	rtp_session_set_payload_type(rtps,payload);
 
+	rtp_session_set_payload_type(rtps,payload); // session <-> payload(arg)
+
+	// session 扔给 rtp_send filter
 	ms_filter_call_method(stream->ms.rtpsend,MS_RTP_SEND_SET_SESSION,rtps);
+	// 创建 rtp_recv filter
 	stream->ms.rtprecv=ms_factory_create_filter(stream->ms.factory,MS_RTP_RECV_ID);
+	// session 扔给 rep_recv filter
 	ms_filter_call_method(stream->ms.rtprecv,MS_RTP_RECV_SET_SESSION,rtps);
+	// 为啥？他们都是一个东西的。。。
 	stream->ms.sessions.rtp_session=rtps;
 
 	if((stream->features & AUDIO_STREAM_FEATURE_DTMF_ECHO) != 0)
 		stream->dtmfgen=ms_factory_create_filter(stream->ms.factory, MS_DTMF_GEN_ID);
 	else
 		stream->dtmfgen=NULL;
+	
+	// 发信号
 	rtp_session_signal_connect(rtps,"telephone-event",(RtpCallback)on_dtmf_received,stream);
 	rtp_session_signal_connect(rtps,"payload_type_changed",(RtpCallback)audio_stream_payload_type_changed,stream);
 
 	if (stream->ms.state==MSStreamPreparing){
-		/*we were using the dummy preload graph, destroy it but keep sound filters unless no soundcard is given*/
+		// 我们使用假的预加载图，当没有给声卡时，销毁它，但是保留声音filters。
 		_audio_stream_unprepare_sound(stream, io->input.type == MSResourceSoundcard);
 	}
 
-	/* creates the local part */
+	// 创建本地部分
 	if (io->input.type == MSResourceSoundcard){
 		if (stream->soundread==NULL)
 			stream->soundread = ms_snd_card_create_reader(io->input.soundcard);
@@ -844,7 +823,8 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 	} else if (io->output.type == MSResourceRtp) {
 		stream->rtp_io_session = io->output.session;
 		pt = rtp_profile_get_payload(rtp_session_get_profile(stream->rtp_io_session),
-			rtp_session_get_send_payload_type(stream->rtp_io_session));
+		                             rtp_session_get_send_payload_type(stream->rtp_io_session)
+									);
 		stream->soundwrite = ms_factory_create_filter(stream->ms.factory, MS_RTP_SEND_ID);
 		ms_filter_call_method(stream->soundwrite, MS_RTP_SEND_SET_SESSION, stream->rtp_io_session);
 		stream->write_encoder = ms_factory_create_encoder(stream->ms.factory,pt->mime_type);
@@ -852,7 +832,7 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 		stream->soundwrite=ms_factory_create_filter(stream->ms.factory, MS_FILE_REC_ID);
 	}
 
-	/* creates the couple of encoder/decoder */
+	// 创建 编码器/解码器 对
 	pt=rtp_profile_get_payload(profile,payload);
 	if (pt==NULL){
 		ms_error("audiostream.c: undefined payload type.");
@@ -907,7 +887,7 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 	if ( ((stream->features & AUDIO_STREAM_FEATURE_EC) && !stream->use_ec) || has_builtin_ec )
 		stream->features &=~AUDIO_STREAM_FEATURE_EC;
 
-	/*configure the echo canceller if required */
+	// 配置回音消除，如果要求了
 	if ((stream->features & AUDIO_STREAM_FEATURE_EC) == 0 && stream->ec != NULL) {
 		ms_filter_destroy(stream->ec);
 		stream->ec=NULL;
@@ -1073,49 +1053,7 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 		stream->spk_equalizer=NULL;
 	}
 
-#ifdef __ANDROID__
-	{
-		/*configure equalizer if needed*/
-		MSDevicesInfo *devices = ms_factory_get_devices_info(stream->ms.factory);
-		SoundDeviceDescription *device = ms_devices_info_get_sound_device_description(devices);
-		
-		audio_stream_set_mic_gain_db(stream, 0);
-		audio_stream_set_spk_gain_db(stream, 0);
-		if (device && device->hacks) {
-			const char *gains;
-			gains = device->hacks->mic_equalizer;
-			if (gains && stream->mic_equalizer) {
-				bctbx_list_t *gains_list = ms_parse_equalizer_string(gains);
-				if (gains_list) {
-					bctbx_list_t *it;
-					ms_message("Found equalizer configuration for the microphone in the devices table");
-					for (it = gains_list; it; it=it->next) {
-						MSEqualizerGain *g = (MSEqualizerGain *)it->data;
-						ms_message("Read equalizer gains: %f(~%f) --> %f", g->frequency, g->width, g->gain);
-						ms_filter_call_method(stream->mic_equalizer, MS_EQUALIZER_SET_GAIN, g);
-					}
-					bctbx_list_free_with_data(gains_list, ms_free);
-				}
-			}
-			gains = device->hacks->spk_equalizer;
-			if (gains && stream->spk_equalizer) {
-				bctbx_list_t *gains_list = ms_parse_equalizer_string(gains);
-				if (gains_list) {
-					bctbx_list_t *it;
-					ms_message("Found equalizer configuration for the speakers in the devices table");
-					for (it = gains_list; it; it=it->next) {
-						MSEqualizerGain *g = (MSEqualizerGain *)it->data;
-						ms_message("Read equalizer gains: %f(~%f) --> %f", g->frequency, g->width, g->gain);
-						ms_filter_call_method(stream->spk_equalizer, MS_EQUALIZER_SET_GAIN, g);
-					}
-					bctbx_list_free_with_data(gains_list, ms_free);
-				}
-			}
-		}
-	}
-#endif
-
-	/*configure resamplers if needed*/
+	// 如果需要，配置重采样
 	if (stream->read_resampler) {
 		MSFilter *from = stream->soundread;
 		if (stream->read_decoder) from = stream->read_decoder;
@@ -1192,13 +1130,13 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 		ms_filter_call_method(stream->outbound_mixer,MS_FILTER_SET_NCHANNELS,&nchannels);
 	}
 
-	/* create ticker */
+	// 创建 ticker
 	if (stream->ms.sessions.ticker==NULL) media_stream_start_ticker(&stream->ms);
 
-	/* and then connect all */
-	/* tip: draw yourself the picture if you don't understand */
+	// 现在连接所有
+	// 小贴士：如果你不理解，画自己的图
 
-	/*sending graph*/
+	// 发送图
 	ms_connection_helper_start(&h);
 	ms_connection_helper_link(&h,stream->soundread,-1,0);
 	if (stream->read_decoder)
@@ -1221,7 +1159,7 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 		ms_connection_helper_link(&h,stream->ms.encoder,0,0);
 	ms_connection_helper_link(&h,stream->ms.rtpsend,0,-1);
 
-	/*receiving graph*/
+	// 接受图
 	ms_connection_helper_start(&h);
 	ms_connection_helper_link(&h,stream->ms.rtprecv,-1,0);
 	if (!skip_encoder_and_decoder)
@@ -1260,6 +1198,7 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 	}
 
 	/*to make sure all preprocess are done before befre processing audio*/
+	// 确保在处理音频前所有 preprocess 都完成了。
 	ms_ticker_attach_multiple(stream->ms.sessions.ticker
 				,stream->soundread
 				,stream->ms.rtprecv
@@ -1281,25 +1220,36 @@ int audio_stream_start_from_io(AudioStream *stream, RtpProfile *profile, const c
 int audio_stream_start_full(AudioStream *stream, RtpProfile *profile, const char *rem_rtp_ip,int rem_rtp_port,
 	const char *rem_rtcp_ip, int rem_rtcp_port, int payload,int jitt_comp, const char *infile, const char *outfile,
 	MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec){
-	MSMediaStreamIO io = MS_MEDIA_STREAM_IO_INITIALIZER;
+	
+	MSMediaStreamIO io = MS_MEDIA_STREAM_IO_INITIALIZER; // 初始化器？
 
+	// 判断 是用卡还是用文件
 	if (playcard){
-		io.output.type = MSResourceSoundcard;
+		// 卡有用
+		io.output.type = MSResourceSoundcard; // 来源是卡
 		io.output.soundcard = playcard;
 	}else{
-		io.output.type = MSResourceFile;
+		io.output.type = MSResourceFile; // 来源是文件
 		io.output.file = outfile;
 	}
+
 	if (captcard){
-		io.input.type = MSResourceSoundcard;
+		// 卡有用
+		io.input.type = MSResourceSoundcard; // 来源是卡
 		io.input.soundcard = captcard;
 	}else{
-		io.input.type = MSResourceFile;
+		io.input.type = MSResourceFile; // 来源是文件
 		io.input.file = infile;
 	}
-	if (jitt_comp != -1)
+
+
+	if (jitt_comp != -1) // 如果这玩意有效，就拿去设置
 		rtp_session_set_jitter_compensation(stream->ms.sessions.rtp_session, jitt_comp);
+
+	// 启用回声抵消
 	audio_stream_enable_echo_canceller(stream, use_ec);
+
+	// 转发调用
 	return audio_stream_start_from_io(stream, profile, rem_rtp_ip, rem_rtp_port, rem_rtcp_ip, rem_rtcp_port, payload, &io);
 }
 
@@ -1458,7 +1408,10 @@ void audio_stream_set_features(AudioStream *st, uint32_t features){
 }
 
 AudioStream *audio_stream_new_with_sessions(MSFactory *factory, const MSMediaStreamSessions *sessions){
+	// 分配内存
 	AudioStream *stream=(AudioStream *)ms_new0(AudioStream,1);
+
+	// 获取 回声消除 filter 名字
 	const char *echo_canceller_filtername = ms_factory_get_echo_canceller_filter_name(factory);
 	MSFilterDesc *ec_desc = NULL;
 	const OrtpRtcpXrMediaCallbacks rtcp_xr_media_cbs = {
@@ -1471,46 +1424,69 @@ AudioStream *audio_stream_new_with_sessions(MSFactory *factory, const MSMediaStr
 	};
 
 	if (echo_canceller_filtername != NULL) {
+		// 有这个东西，就拿到这玩意的描述
 		ec_desc = ms_factory_lookup_filter_by_name(factory, echo_canceller_filtername);
 	}
 
-	stream->ms.type = MSAudio;
+	stream->ms.type = MSAudio; // 这是音频流
+	// 初始化流
 	media_stream_init(&stream->ms,factory, sessions);
 	
+	// 允许统计信息
 	ms_factory_enable_statistics(factory, TRUE);
 	ms_factory_reset_statistics(factory);
 
+	// 重同步会话
 	rtp_session_resync(stream->ms.sessions.rtp_session);
 	/*some filters are created right now to allow configuration by the application before start() */
-	stream->ms.rtpsend=ms_factory_create_filter(factory, MS_RTP_SEND_ID);
+	// 一些 filters 就在这里创建 用来允许程序在 start() 之前配置他们
+	stream->ms.rtpsend=ms_factory_create_filter(factory, MS_RTP_SEND_ID); // rtp发送
 	stream->ms.ice_check_list=NULL;
-	stream->ms.qi=ms_quality_indicator_new(stream->ms.sessions.rtp_session);
-	ms_quality_indicator_set_label(stream->ms.qi,"audio");
-	stream->ms.process_rtcp=audio_stream_process_rtcp;
+	stream->ms.qi=ms_quality_indicator_new(stream->ms.sessions.rtp_session); // 质量指示
+	ms_quality_indicator_set_label(stream->ms.qi,"audio"); // 设置质量指示标签 audio
+	stream->ms.process_rtcp=audio_stream_process_rtcp; // 这tm是个函数。。。空函数！（嘤嘤嘤）
 	if (ec_desc!=NULL){
+		// 如果ec_desc真的存在
 		stream->ec=ms_factory_create_filter_from_desc(factory, ec_desc);
 	}else{
+		// 不然就用 MS_SPEEX_EC_ID 凑合
 		stream->ec=ms_factory_create_filter(factory, MS_SPEEX_EC_ID );
 	}
+
+	//设置点属性
 	stream->play_dtmfs=TRUE;
 	stream->use_gc=FALSE;
 	stream->use_agc=FALSE;
 	stream->use_ng=FALSE;
 	stream->features=AUDIO_STREAM_FEATURE_ALL;
 
+	// 设置回调
+	// 真特么一堆回调。。。
 	rtp_session_set_rtcp_xr_media_callbacks(stream->ms.sessions.rtp_session, &rtcp_xr_media_cbs);
 
 	return stream;
 }
 
+/* audio_stream_new (MSFactory 工厂,
+                     int 本地rtp端口,
+					 int 本地rtcp端口,
+					 boot_t 是否为ipv6)
+					 -> AudioStream *
+*/
 AudioStream *audio_stream_new(MSFactory* factory, int loc_rtp_port, int loc_rtcp_port, bool_t ipv6){
+	// ip = ipv6 ? true ->  "::"
+	//             false -> "0.0.0.0"
 	return audio_stream_new2(factory, ipv6 ? "::" : "0.0.0.0", loc_rtp_port, loc_rtcp_port);
 }
 
 AudioStream *audio_stream_new2(MSFactory* factory, const char* ip, int loc_rtp_port, int loc_rtcp_port) {
+	// 空对象构造
 	AudioStream *obj;
 	MSMediaStreamSessions sessions={0};
+
+	// 双工会话
 	sessions.rtp_session=ms_create_duplex_rtp_session(ip,loc_rtp_port,loc_rtcp_port, ms_factory_get_mtu(factory));
+	// 创建流
 	obj=audio_stream_new_with_sessions(factory, &sessions);
 	obj->ms.owns_sessions=TRUE;
 	return obj;
@@ -1715,7 +1691,7 @@ void audio_stream_stop(AudioStream * stream){
 			rtp_stats_display(rtp_session_get_stats(stream->ms.sessions.rtp_session),
 				"             AUDIO SESSION'S RTP STATISTICS                ");
 
-			/*dismantle the outgoing graph*/
+			// 拆开发送图
 			ms_connection_helper_start(&h);
 			ms_connection_helper_unlink(&h,stream->soundread,-1,0);
 			if (stream->read_decoder != NULL)
@@ -1738,7 +1714,7 @@ void audio_stream_stop(AudioStream * stream){
 				ms_connection_helper_unlink(&h,stream->ms.encoder,0,0);
 			ms_connection_helper_unlink(&h,stream->ms.rtpsend,0,-1);
 
-			/*dismantle the receiving graph*/
+			// 拆开接收图
 			ms_connection_helper_start(&h);
 			ms_connection_helper_unlink(&h,stream->ms.rtprecv,-1,0);
 			if (stream->ms.decoder)
@@ -1767,7 +1743,7 @@ void audio_stream_stop(AudioStream * stream){
 				ms_connection_helper_unlink(&h, stream->write_encoder, 0, 0);
 			ms_connection_helper_unlink(&h,stream->soundwrite,0,-1);
 
-			/*dismantle the call recording */
+			// 拆除调用记录
 			if (stream->av_recorder.recorder)
 				unplumb_av_recorder(stream);
 			if (stream->recorder){
@@ -1775,7 +1751,7 @@ void audio_stream_stop(AudioStream * stream){
 				ms_filter_unlink(stream->recv_tee,1,stream->recorder_mixer,1);
 				ms_filter_unlink(stream->recorder_mixer,0,stream->recorder,0);
 			}
-			/*dismantle the remote play part*/
+			// 拆除远程播放
 			close_av_player(stream);
 		}
 	}
@@ -1803,14 +1779,6 @@ int audio_stream_send_dtmf(AudioStream *stream, char dtmf)
 
 static void audio_stream_set_rtp_output_gain_db(AudioStream *stream, float gain_db) {
 	float gain = gain_db;
-#ifdef __ANDROID__
-	MSDevicesInfo *devices = ms_factory_get_devices_info(stream->ms.factory);
-	SoundDeviceDescription *device = ms_devices_info_get_sound_device_description(devices);
-	if (device && device->hacks) {
-		gain += device->hacks->mic_gain;
-		ms_message("Applying %f db to mic gain based on parameter and audio hack value in device table", gain);
-	}
-#endif
 
 	if (stream->volsend){
 		ms_filter_call_method(stream->volsend, MS_VOLUME_SET_DB_GAIN, &gain);
@@ -1830,14 +1798,6 @@ void audio_stream_mute_rtp(AudioStream *stream, bool_t val)
 
 void audio_stream_set_spk_gain_db(AudioStream *stream, float gain_db) {
 	float gain = gain_db;
-#ifdef __ANDROID__
-	MSDevicesInfo *devices = ms_factory_get_devices_info(stream->ms.factory);
-	SoundDeviceDescription *device = ms_devices_info_get_sound_device_description(devices);
-	if (device && device->hacks) {
-		gain += device->hacks->spk_gain;
-		ms_message("Applying %f dB to speaker gain based on parameter and audio hack value in device table", gain);
-	}
-#endif
 
 	if (stream->volrecv){
 		ms_filter_call_method(stream->volrecv, MS_VOLUME_SET_DB_GAIN, &gain);
