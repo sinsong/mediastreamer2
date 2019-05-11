@@ -1,11 +1,24 @@
 // Audio Stream Specialization
 
 #include "mediastreamer2/mediastream.h"
-#include "mediastreamer2/msequalizer.h"
+#include "mediastreamer2/dtmfgen.h"
+#include "mediastreamer2/mssndcard.h"
+#include "mediastreamer2/msrtp.h"
+#include "mediastreamer2/msfileplayer.h"
+#include "mediastreamer2/msfilerec.h"
 #include "mediastreamer2/msvolume.h"
+#include "mediastreamer2/msequalizer.h"
+#include "mediastreamer2/mstee.h"
+#include "mediastreamer2/msaudiomixer.h"
+#include "mediastreamer2/mscodecutils.h"
+#include "mediastreamer2/msitc.h"
+#include "mediastreamer2/msvaddtx.h"
+#include "mediastreamer2/msgenericplc.h"
+#include "mediastreamer2/mseventqueue.h"
 
 #include <math.h>
 #include <signal.h>
+#include <sys/socket.h>
 
 #include <ortp/b64.h>
 
@@ -92,7 +105,7 @@ int main()
 
     }
 
-    if(audio)
+    if(ass)
     {
         audio_stream_specialization_stop(ass);
     }
@@ -194,6 +207,7 @@ int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile
 
     ms_connection_helper_start(&h);
     ms_connection_helper_link(&h, ass->soundread, -1, 0);
+    if(ass->ec) ms_connection_helper_link(&h, ass->ec, 0, 0);
     ms_connection_helper_link(&h, ass->encoder, 0, 0);
     ms_connection_helper_link(&h, ass->rtpsend, 0, -1);
 
@@ -218,17 +232,16 @@ void audio_stream_specialization_stop(AudioStreamSpecialization *ass)
         MSConnectionHelper h;
         // 拆开发送图
 		ms_connection_helper_start(&h);
-		ms_connection_helper_unlink(&h,stream->soundread,-1,0);
-		if (stream->read_decoder) ms_connection_helper_unlink(&h, stream->read_decoder, 0, 0);
-		if (stream->ec)           ms_connection_helper_unlink(&h,stream->ec,1,1);
-		if (stream->ms.encoder)   ms_connection_helper_unlink(&h,stream->ms.encoder,0,0);
-		ms_connection_helper_unlink(&h,stream->ms.rtpsend,0,-1);
+		ms_connection_helper_unlink(&h,ass->soundread,-1,0);
+		if (ass->ec)        ms_connection_helper_unlink(&h,ass->ec,1,1);
+		if (ass->encoder)   ms_connection_helper_unlink(&h,ass->encoder,0,0);
+		ms_connection_helper_unlink(&h,ass->rtpsend,0,-1);
 
         // 拆开接收图
 		ms_connection_helper_start(&h);
-		ms_connection_helper_unlink(&h,stream->ms.rtprecv,-1,0);
-		if (stream->ms.decoder) ms_connection_helper_unlink(&h,stream->ms.decoder,0,0);
-		if(ass->mixer)          ms_connection_helper_unlink(&h, ass->mixer, 0, 0);
-		ms_connection_helper_unlink(&h,stream->soundwrite,0,-1);
+		ms_connection_helper_unlink(&h,ass->rtprecv,-1,0);
+		if (ass->decoder) ms_connection_helper_unlink(&h,ass->decoder,0,0);
+		if (ass->mixer)   ms_connection_helper_unlink(&h, ass->mixer, 0, 0);
+		ms_connection_helper_unlink(&h,ass->soundwrite,0,-1);
     }
 }
