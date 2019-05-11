@@ -108,10 +108,13 @@ MSTickerPrio __ms_get_default_prio(bool_t is_video) {
 void media_stream_init(MediaStream *stream, MSFactory *factory, const MSMediaStreamSessions *sessions) {
 	stream->sessions = *sessions;
 	
+	// new 事件分配器和事件队列
 	stream->evd = ortp_ev_dispatcher_new(stream->sessions.rtp_session);
 	stream->evq = ortp_ev_queue_new();
 	stream->factory = factory; /*the factory is used later to instanciate everything in mediastreamer2.*/
+	                           // 这个工厂是用来实例化 mediastreamer2 的一切
 	rtp_session_register_event_queue(stream->sessions.rtp_session, stream->evq);
+	// 给会话注册事件队列
 	
 	/*we give to the zrtp and dtls sessions a backpointer to all the stream sessions*/
 	if (sessions->zrtp_context != NULL) {
@@ -123,20 +126,24 @@ void media_stream_init(MediaStream *stream, MSFactory *factory, const MSMediaStr
 	ortp_ev_dispatcher_connect(stream->evd
 								, ORTP_EVENT_RTCP_PACKET_RECEIVED
 								, RTCP_RTPFB
-								, (OrtpEvDispatcherCb)tmmbr_received
+								, (OrtpEvDispatcherCb)tmmbr_received // 该文件中的局部函数
 								, stream);
 }
 
 RtpSession * ms_create_duplex_rtp_session(const char* local_ip, int loc_rtp_port, int loc_rtcp_port, int mtu) {
+	// 空对象指针
 	RtpSession *rtpr;
 
+	// new 一个会话
 	rtpr = rtp_session_new(RTP_SESSION_SENDRECV);
+
+	// 设置会话
 	rtp_session_set_recv_buf_size(rtpr, MAX(mtu , MS_MINIMAL_MTU));
 	rtp_session_set_scheduling_mode(rtpr, 0);
 	rtp_session_set_blocking_mode(rtpr, 0);
 	rtp_session_enable_adaptive_jitter_compensation(rtpr, TRUE);
 	rtp_session_set_symmetric_rtp(rtpr, TRUE);
-	rtp_session_set_local_addr(rtpr, local_ip, loc_rtp_port, loc_rtcp_port);
+	rtp_session_set_local_addr(rtpr, local_ip, loc_rtp_port, loc_rtcp_port); // 本地地址
 	rtp_session_signal_connect(rtpr, "timestamp_jump", (RtpCallback)rtp_session_resync, NULL);
 	rtp_session_signal_connect(rtpr, "ssrc_changed", (RtpCallback)rtp_session_resync, NULL);
 	rtp_session_set_ssrc_changed_threshold(rtpr, 0);
@@ -336,7 +343,7 @@ void media_stream_iterate(MediaStream *stream){
 	time_t curtime=ms_time(NULL);
 
 	if (stream->ice_check_list) ice_check_list_process(stream->ice_check_list,stream->sessions.rtp_session);
-	/*we choose to update the quality indicator as much as possible, since local statistics can be computed realtime. */
+	// 我们选择尽可能更新质量指标，这样本地统计就能实时计算。
 	if (stream->state==MSStreamStarted){
 		if (stream->is_beginning && (curtime-stream->start_time>15)){
 			rtp_session_set_rtcp_report_interval(stream->sessions.rtp_session,5000);
