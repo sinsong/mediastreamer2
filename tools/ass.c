@@ -38,7 +38,7 @@ int rport;
 
 int payload;
 
-static void tmmbr_received(const OrtpEventData *evd, void *user_pointer);
+
 
 typedef struct _AudioStreamSpecialization
 {
@@ -62,6 +62,11 @@ typedef struct _AudioStreamSpecialization
     //OrtpEvDispatcher *evd;
     OrtpEvQueue *evq;
 } AudioStreamSpecialization;
+
+AudioStreamSpecialization *audio_stream_specialization(MSFactory *factory, int lport, int lport_rtcp);
+void audio_stream_specialization_free(AudioStreamSpecialization *ass);
+int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile *profile, const char *r_rtp_ip, int r_rtp_port, const char *r_rtcp_ip, int r_rtcp_port, int payload, MSSndCard *captcard, MSSndCard *playcard);
+void audio_stream_specialization_stop(AudioStreamSpecialization *ass);
 
 AudioStreamSpecialization *ass = NULL;
 
