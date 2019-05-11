@@ -184,7 +184,7 @@ int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile
 
     // 设置端口
     rtp_session_set_remote_addr_full(rtps, r_rtcp_ip, r_rtp_port, r_rtcp_ip, r_rtcp_port);
-    rtp_session_enable(rtps, TRUE); // 如果rtcp_port是0就设置为FALSE
+    rtp_session_enable_rtcp(rtps, TRUE); // 如果rtcp_port是0就设置为FALSE
 
     rtp_session_set_payload_type(rtps, payload);
 
