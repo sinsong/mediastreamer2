@@ -89,6 +89,7 @@ int main()
     
     factory = ms_factory_new_with_voip();
 
+    profile = rtp_profile_clone_full(&av_profile);
     rtp_profile_set_payload(profile, 121, &payload_type_opus);
     pt = rtp_profile_get_payload(profile, payload);
 
