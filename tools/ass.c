@@ -143,11 +143,11 @@ AudioStreamSpecialization *audio_stream_specialization(MSFactory *factory, int l
 {
     AudioStreamSpecialization *ass;
 
+    ass = (AudioStreamSpecialization *)ms_new0(AudioStreamSpecialization, 1);
+
     ass->rtp_session = rtp_session_new(RTP_SESSION_SENDRECV);
     rtp_session_set_local_addr(ass->rtp_session, "0.0.0.0", lport, lport_rtcp); // 本地地址
     //disable_checksums(rtp_session_get_rtp_socket(ass->rtp_session));
-
-    ass = (AudioStreamSpecialization *)ms_new0(AudioStreamSpecialization, 1);
 
     //media_stream_init
     //ass->evd = 不要了
