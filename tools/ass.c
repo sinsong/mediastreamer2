@@ -222,7 +222,7 @@ int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile
     ms_connection_helper_link(&h, ass->mixer, 0, 0);
     ms_connection_helper_link(&h, ass->soundwrite, 0, -1);
 
-    ms_ticker_attach_multiple(ass->ticker, ass->soundread, ass->rtprecv);
+    ms_ticker_attach_multiple(ass->ticker, ass->soundread, ass->rtprecv, NULL);
 
     return 0;
 }
