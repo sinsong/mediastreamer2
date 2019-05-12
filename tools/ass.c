@@ -38,6 +38,8 @@ int rport;
 
 int payload;
 
+int rate = 8000;
+
 
 
 typedef struct _AudioStreamSpecialization
@@ -86,6 +88,7 @@ int main()
     profile = NULL;
 
     ortp_init();
+    ortp_set_log_level_mask(ORTP_LOG_DOMAIN, ORTP_MESSAGE|ORTP_WARNING|ORTP_ERROR|ORTP_FATAL);
     
     factory = ms_factory_new_with_voip();
 
@@ -209,6 +212,12 @@ int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile
     ass->mixer = ms_factory_create_filter(ass->factory, MS_AUDIO_MIXER_ID);
 
     ass->ticker = ms_ticker_new();
+
+    ms_filter_call_method(ass->soundread, MS_FILTER_SET_SAMPLE_RATE, &rate);
+    ms_filter_call_method(ass->encoder, MS_FILTER_SET_SAMPLE_RATE, &rate);
+    ms_filter_call_method(ass->decoder, MS_FILTER_SET_SAMPLE_RATE, &rate);
+    ms_filter_call_method(ass->mixer, MS_FILTER_SET_SAMPLE_RATE, &rate);
+    ms_filter_call_method(ass->rtprecv, MS_FILTER_SET_SAMPLE_RATE, &pt->clock_rate);
 
     ms_connection_helper_start(&h);
     ms_connection_helper_link(&h, ass->soundread, -1, 0);
