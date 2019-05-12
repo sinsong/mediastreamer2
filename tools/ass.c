@@ -143,10 +143,9 @@ AudioStreamSpecialization *audio_stream_specialization(MSFactory *factory, int l
 {
     AudioStreamSpecialization *ass;
 
-    RtpSession *session;
-    session = rtp_session_new(RTP_SESSION_SENDRECV);
-    rtp_session_set_local_addr(session, "0.0.0.0", lport, lport_rtcp); // 本地地址
-    //disable_checksums(rtp_session_get_rtp_socket(rtpr));
+    ass->rtp_session = rtp_session_new(RTP_SESSION_SENDRECV);
+    rtp_session_set_local_addr(ass->rtp_session, "0.0.0.0", lport, lport_rtcp); // 本地地址
+    //disable_checksums(rtp_session_get_rtp_socket(ass->rtp_session));
 
     ass = (AudioStreamSpecialization *)ms_new0(AudioStreamSpecialization, 1);
 
