@@ -76,7 +76,7 @@ int main()
 {
     lport = 20020;
 
-    strcpy(ip, "127.0.0.1");
+    strcpy(ip, "127.0.0.1\n");
     rport = 20020;
 
     printf("[%d] -> [%s:%d]", lport, ip, rport);
