@@ -40,7 +40,7 @@ int payload;
 
 int rate = 8000;
 
-
+static void on_silence_detected(void *data, MSFilter *f, unsigned int event_id, void *event_arg);
 
 typedef struct _AudioStreamSpecialization
 {
@@ -79,7 +79,8 @@ int main()
     strcpy(ip, "127.0.0.1\n");
     rport = 20020;
 
-    printf("[%d] -> [%s:%d]", lport, ip, rport);
+    printf("[ass] local:  0.0.0.0:%d", lport);
+    printf("[ass] remote: %s:%d", ip, rport);
 
     payload = 121;
     session = NULL;
@@ -92,13 +93,17 @@ int main()
     
     factory = ms_factory_new_with_voip();
 
+    // profile
     profile = rtp_profile_clone_full(&av_profile);
     rtp_profile_set_payload(profile, 121, &payload_type_opus);
     pt = rtp_profile_get_payload(profile, payload);
 
+    // Sound Card
     MSSndCardManager *manager = ms_factory_get_snd_card_manager(factory);
 	MSSndCard *capt = ms_snd_card_manager_get_default_capture_card(manager);
 	MSSndCard *play = ms_snd_card_manager_get_default_capture_card(manager);
+
+    // AudioStreamSpecialization Create!
     ass = audio_stream_specialization(factory, lport, lport + 1);
 
     if (capt)
@@ -109,6 +114,7 @@ int main()
     audio_stream_specialization_start(ass, profile, ip, rport, ip, rport+1, payload, capt, play);
 
     // 开始
+    puts("[ass] enter \'q\' to exit!");
     while(getchar() != 'q')
     {
 
@@ -137,6 +143,7 @@ void audio_stream_specialization_free(AudioStreamSpecialization *ass)
     if (ass->soundread) ms_filter_destroy(ass->soundread);
 	if (ass->soundwrite) ms_filter_destroy(ass->soundwrite);
     if (ass->ec)	ms_filter_destroy(ass->ec);
+    if (ass->vaddtx) ms_filter_destroy(ass->vaddtx);
     if(ass->mixer) ms_filter_destroy(ass->mixer);
 
     ms_free(ass); // memory free
@@ -206,6 +213,13 @@ int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile
         return -1;
     }
 
+    // vaddtx
+    ass->vaddtx = ms_factory_create_filter(ass->factory, MS_VAD_DTX_ID);
+    if(ass->vaddtx)
+    {
+        ms_filter_add_notify_callback(ass->vaddtx, on_silence_detected, ass, TRUE);
+    }
+
     ass->encoder = ms_factory_create_encoder(ass->factory, pt->mime_type);
     ass->decoder = ms_factory_create_decoder(ass->factory, pt->mime_type);
 
@@ -219,12 +233,15 @@ int audio_stream_specialization_start(AudioStreamSpecialization *ass, RtpProfile
     ms_filter_call_method(ass->mixer, MS_FILTER_SET_SAMPLE_RATE, &rate);
     ms_filter_call_method(ass->rtprecv, MS_FILTER_SET_SAMPLE_RATE, &pt->clock_rate);
 
+    // 发送图
     ms_connection_helper_start(&h);
     ms_connection_helper_link(&h, ass->soundread, -1, 0);
     if(ass->ec) ms_connection_helper_link(&h, ass->ec, 0, 0);
+    if(ass->vaddtx) ms_connection_helper_link(&h, ass->vaddtx, 0, 0);
     ms_connection_helper_link(&h, ass->encoder, 0, 0);
     ms_connection_helper_link(&h, ass->rtpsend, 0, -1);
 
+    // 接收图
     ms_connection_helper_start(&h);
     ms_connection_helper_link(&h, ass->rtprecv, -1, 0);
     ms_connection_helper_link(&h, ass->decoder, 0, 0);
@@ -248,6 +265,7 @@ void audio_stream_specialization_stop(AudioStreamSpecialization *ass)
 		ms_connection_helper_start(&h);
 		ms_connection_helper_unlink(&h,ass->soundread,-1,0);
 		if (ass->ec)        ms_connection_helper_unlink(&h,ass->ec,1,1);
+        if (ass->vaddtx)    ms_connection_helper_unlink(&h,ass->vaddtx, 0,0);
 		if (ass->encoder)   ms_connection_helper_unlink(&h,ass->encoder,0,0);
 		ms_connection_helper_unlink(&h,ass->rtpsend,0,-1);
 
@@ -257,5 +275,23 @@ void audio_stream_specialization_stop(AudioStreamSpecialization *ass)
 		if (ass->decoder) ms_connection_helper_unlink(&h,ass->decoder,0,0);
 		if (ass->mixer)   ms_connection_helper_unlink(&h, ass->mixer, 0, 0);
 		ms_connection_helper_unlink(&h,ass->soundwrite,0,-1);
+    }
+}
+
+static void on_silence_detected(void *data, MSFilter *f, unsigned int event_id, void *event_arg)
+{
+    AudioStreamSpecialization *ass = (AudioStreamSpecialization*)data;
+    if(!ass->rtpsend)
+        return;
+    switch(event_id)
+    {
+    case MS_VAD_DTX_NO_VOICE:
+        ms_message("vaddtx: no voice!")
+        //ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_SEND_GENERIC_CN, event_arg);
+        ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_MUTE, event_arg);
+        break;
+    case MS_VAD_DTX_VOICE:
+        ms_message("vaddtx: have voice!")
+        ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_UNMUTE, event_arg);
     }
 }
