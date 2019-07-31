@@ -286,12 +286,12 @@ static void on_silence_detected(void *data, MSFilter *f, unsigned int event_id, 
     switch(event_id)
     {
     case MS_VAD_DTX_NO_VOICE:
-        ms_message("vaddtx: no voice!")
+        ms_message("vaddtx: no voice!");
         //ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_SEND_GENERIC_CN, event_arg);
         ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_MUTE, event_arg);
         break;
     case MS_VAD_DTX_VOICE:
-        ms_message("vaddtx: have voice!")
+        ms_message("vaddtx: have voice!");
         ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_UNMUTE, event_arg);
     }
 }
