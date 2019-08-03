@@ -79,8 +79,8 @@ int main()
     strcpy(ip, "127.0.0.1\n");
     rport = 20020;
 
-    printf("[ass] local:  0.0.0.0:%d", lport);
-    printf("[ass] remote: %s:%d", ip, rport);
+    printf("[ass] local:  0.0.0.0:%d\n", lport);
+    printf("[ass] remote: %s:%d\n", ip, rport);
 
     payload = 121;
     session = NULL;
@@ -286,12 +286,12 @@ static void on_silence_detected(void *data, MSFilter *f, unsigned int event_id, 
     switch(event_id)
     {
     case MS_VAD_DTX_NO_VOICE:
-        ms_message("vaddtx: no voice!");
+        ms_message("vaddtx: voice X - XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         //ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_SEND_GENERIC_CN, event_arg);
         ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_MUTE, event_arg);
         break;
     case MS_VAD_DTX_VOICE:
-        ms_message("vaddtx: have voice!");
+        ms_message("vaddtx: voice R - $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_UNMUTE, event_arg);
     }
 }
