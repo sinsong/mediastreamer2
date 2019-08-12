@@ -84,8 +84,9 @@ if (NOT IOS)
 	endif()
 endif()
 
-add_compile_options(-g)
-add_executable(myt ${USE_BUNDLE} myt.c)
-target_link_libraries(myt ${MS2_LIBS_FOR_TOOLS} ${ORTP_LIBRARIES})
+# 调试
+# add_compile_options(-g)
 add_executable(ass ${USE_BUNDLE} ass.c)
 target_link_libraries(ass ${MS2_LIBS_FOR_TOOLS} ${ORTP_LIBRARIES})
+add_executable(ttt ${USE_BUNDLE} ttt.c)
+target_link_libraries(ttt ${MS2_LIBS_FOR_TOOLS} ${ORTP_LIBRARIES})
