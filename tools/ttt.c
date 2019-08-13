@@ -91,9 +91,9 @@ int main(void)
 	ms_filter_call_method (rtprecv, MS_FILTER_SET_SAMPLE_RATE, &pt->clock_rate);
 
 	//link filters 
-	ms_filter_link(capture, 0, encoder, 0);
-	ms_filter_link(encoder, 0, vaddtx, 0);
-	ms_filter_link(vaddtx, 0, rtpsend, 0);
+	ms_filter_link(capture, 0, vaddtx, 0);
+	ms_filter_link(vaddtx, 0, encoder, 0);
+	ms_filter_link(encoder, 0, rtpsend, 0);
 
 	ms_filter_link(rtprecv, 0, decoder, 0);
 	ms_filter_link(decoder, 0, playback, 0);
