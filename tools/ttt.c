@@ -55,7 +55,7 @@ int main(void)
 	rtps=rtp_session_new(RTP_SESSION_SENDRECV);
 	
 	//find capture and playback
-	card_capture = ms_snd_card_manager_get_default_capture_card(ms_factory_get_snd_card_manager(factory));
+	card_capture  = ms_snd_card_manager_get_default_capture_card(ms_factory_get_snd_card_manager(factory));
 	card_playback = ms_snd_card_manager_get_default_playback_card(ms_factory_get_snd_card_manager(factory));
 
 	//init
@@ -74,29 +74,30 @@ int main(void)
 	//make filters	
 	capture=ms_snd_card_create_reader(card_capture);
 	playback=ms_snd_card_create_writer(card_playback);
-	vaddtx=ms_factory_create_filter(ass->factory, MS_VAD_DTX_ID);
+	vaddtx=ms_factory_create_filter(factory, MS_VAD_DTX_ID);
 	encoder=ms_factory_create_encoder(factory,pt->mime_type);
 	decoder=ms_factory_create_decoder(factory,pt->mime_type);
 	rtprecv=ms_factory_create_filter(factory,MS_RTP_RECV_ID);
 	rtpsend=ms_factory_create_filter(factory,MS_RTP_SEND_ID);
 	
 	//configure filters
-	ms_filter_call_method (capture, MS_FILTER_SET_SAMPLE_RATE,&rate);
+	ms_filter_call_method (capture, MS_FILTER_SET_SAMPLE_RATE, &rate);
 	ms_filter_call_method (playback, MS_FILTER_SET_SAMPLE_RATE,&rate);
 	ms_filter_call_method (vaddtx, on_silence_detected, rtpsend);
-	ms_filter_call_method (encoder,MS_FILTER_SET_SAMPLE_RATE,&rate);
-	ms_filter_call_method (decoder,MS_FILTER_SET_SAMPLE_RATE,&rate);
-	ms_filter_call_method (rtprecv,MS_RTP_RECV_SET_SESSION,rtps);
-	ms_filter_call_method (rtpsend,MS_RTP_SEND_SET_SESSION,rtps);
-	ms_filter_call_method (rtprecv, MS_FILTER_SET_SAMPLE_RATE,&pt->clock_rate);
+	ms_filter_call_method (encoder, MS_FILTER_SET_SAMPLE_RATE, &rate);
+	ms_filter_call_method (decoder, MS_FILTER_SET_SAMPLE_RATE, &rate);
+	ms_filter_call_method (rtprecv, MS_RTP_RECV_SET_SESSION, rtps);
+	ms_filter_call_method (rtpsend, MS_RTP_SEND_SET_SESSION, rtps);
+	ms_filter_call_method (rtprecv, MS_FILTER_SET_SAMPLE_RATE, &pt->clock_rate);
 
 	//link filters 
-	ms_filter_link(capture,0, encoder,0);
+	ms_filter_link(capture, 0, encoder, 0);
 	ms_filter_link(encoder, 0, vaddtx, 0);
-	ms_filter_link(vaddtx, 0, rtpsend,0);
+	ms_filter_link(vaddtx, 0, rtpsend, 0);
 
-	ms_filter_link(rtprecv,0, decoder,0);
-	ms_filter_link(decoder,0, playback,0);
+	ms_filter_link(rtprecv, 0, decoder, 0);
+	ms_filter_link(decoder, 0, playback, 0);
+
 	ms_ticker_attach(ticker, capture);
 	ms_ticker_attach(ticker, rtprecv);
 
@@ -130,7 +131,6 @@ static void on_silence_detected(void *data, MSFilter *f, unsigned int event_id, 
     {
     case MS_VAD_DTX_NO_VOICE:
         ms_message("vaddtx: voice X - XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
-        //ms_filter_call_method(ass->rtpsend, MS_RTP_SEND_SEND_GENERIC_CN, event_arg);
         ms_filter_call_method(rtpsend, MS_RTP_SEND_MUTE, event_arg);
         break;
     case MS_VAD_DTX_VOICE:
