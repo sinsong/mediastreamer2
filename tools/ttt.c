@@ -83,7 +83,7 @@ int main(void)
 	//configure filters
 	ms_filter_call_method (capture, MS_FILTER_SET_SAMPLE_RATE, &rate);
 	ms_filter_call_method (playback, MS_FILTER_SET_SAMPLE_RATE,&rate);
-	ms_filter_add_notify_callback (vaddtx, on_silence_detected, rtpsend);
+	ms_filter_add_notify_callback (vaddtx, on_silence_detected, rtpsend, TRUE);
 	ms_filter_call_method (encoder, MS_FILTER_SET_SAMPLE_RATE, &rate);
 	ms_filter_call_method (decoder, MS_FILTER_SET_SAMPLE_RATE, &rate);
 	ms_filter_call_method (rtprecv, MS_RTP_RECV_SET_SESSION, rtps);
